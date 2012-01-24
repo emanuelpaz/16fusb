@@ -25,4 +25,10 @@
 ;                                                                     *
 ;**********************************************************************
 
+
+    ;by DirectIO module
+    bcf     T1CON,T1OSCEN
+    movlw   B'00000111'
+    movwf   CMCON
+    clrf    CCP1CON
 	

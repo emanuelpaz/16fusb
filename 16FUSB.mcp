@@ -35,8 +35,9 @@ file_007=.
 file_008=custom_inc
 file_009=custom_inc
 file_010=custom_inc
-file_011=.
+file_011=custom_inc
 file_012=.
+file_013=.
 [GENERATED_FILES]
 file_000=no
 file_001=no
@@ -51,6 +52,7 @@ file_009=no
 file_010=no
 file_011=no
 file_012=no
+file_013=no
 [OTHER_FILES]
 file_000=no
 file_001=no
@@ -65,6 +67,7 @@ file_009=no
 file_010=no
 file_011=no
 file_012=no
+file_013=no
 [FILE_INFO]
 file_000=isr.asm
 file_001=main.asm
@@ -75,10 +78,11 @@ file_005=out.asm
 file_006=const.inc
 file_007=var.inc
 file_008=cvar.inc
-file_009=setup.inc
-file_010=action.inc
-file_011=header.inc
-file_012=C:\Program Files\Microchip\MPASM Suite\LKR\16f628_g.lkr
+file_009=dio.inc
+file_010=setup.inc
+file_011=action.inc
+file_012=header.inc
+file_013=C:\Program Files\Microchip\MPASM Suite\LKR\16f628_g.lkr
 [SUITE_INFO]
 suite_guid={6B3DAA78-59C1-46DD-B6AA-DBDAE4E06484}
 suite_state=generate-relocatable-code

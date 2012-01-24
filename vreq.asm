@@ -37,7 +37,7 @@ VENDOR_REQUEST  CODE
 
 VendorRequest:
 
-    ;Custom code goes here
-
+    ;DirectIO implementation
+    include "dio.inc"
 
 	END
