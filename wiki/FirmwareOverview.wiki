@@ -10,12 +10,11 @@ As it's not hard to see, with only four instructions to encode/decode the NRZI, 
 
 For simplicity the software implements only the mandatory transfer type for all USB devices: the Control Transfer, always using endpoint zero. Although this type of transfer is more used to the device setup, we can use it for general purposes too.
 
-In general the firmware, which was written in assembly, can be divided into two parts: ISR and MainLoop.
+In general the firmware, which was written in assembly, can be divided into two parts: ISR and Main Loop.
+ 
+ 
 
-
-= Details =
-
-The ISR (Interrupt Service Routine) performs the following operations: 
+= ISR (Interrupt Service Routine) operations =
 
  * Waits for data transfer starts with the Sync Pattern;
  * Receives and immediately save the package (still coded and bit stuffing) in an input buffer (RX_BUFFER);
@@ -28,7 +27,7 @@ The ISR (Interrupt Service Routine) performs the following operations:
  * If the packet is an IN Token, verifies through ACTION_FLAG if the answer is ready, encodes (in NRZI) and sends the entire contents of TX_BUFFER that must have been previously prepared (with bit stuff or CRC) for another routine inserted in MainLoop;
  * Set ACTION_FLAG free when there's no more data to prepare/send;
 
-And the MainLoop:
+= Main Loop operations =
 
  * Checks ACTION_FLAG;
  * Transfers the flow of execution to a point of proper treatment according to ACTION_FLAG;
