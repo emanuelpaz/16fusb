@@ -1,4 +1,4 @@
-#summary One-sentence summary of this page.
+#summary Basic Circuit
 
 = Basic Circuit =
 The basic circuit of 16FUSB consists in a typical PIC16F628/648 configuration using a crystal and a few more components as shown in the figure below. The circuit is feed by VCC (5V) from the USB port. The diodes D1 and D2 connected in the USB data lines are zeners that limit voltage coming from the PIC, since the USB specification states that these lines works with 3.3V signals. This should avoid potential problems with some more sensitive ports, although even without using zeners the circuit seems to work correctly in most cases. R3 and R4 limit the current in USB data lines. The resistor R1 is responsible for starting the device recognition by the host.
