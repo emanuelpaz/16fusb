@@ -7,7 +7,7 @@ For communication between a USB device and the host computer, obviously, we need
 
 The driver installation in Windows environment must meet the following steps:
 
- * Install the filter driver libusb -win32-filter-devel-xxxx.exe (the version of the filter driver must match the version of device driver).
+ * Install the filter driver [http://sourceforge.net/projects/libusb-win32/files/libusb-win32-releases/ libusb -win32-filter-devel-xxxx.exe] (the version of the filter driver must match the version of device driver).
  * Install the device driver of the 16FUSB with the same version of the filter driver.
  * Copy the include file 'lusb0_usb.h' (found in the device driver package) into the Microsoft SDK's include directory (optional, but recommended).
  * Copy the file 'libusb.lib' (also found in the device driver package) into libs directory of your IDE (optional, but recommended).
