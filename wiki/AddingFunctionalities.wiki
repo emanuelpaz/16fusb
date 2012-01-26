@@ -1,0 +1,87 @@
+#summary Making your own functions
+
+= Adding Functionalities =
+
+The 16FUSB was developed as a core which, through an interface, is able to provide code that will support real functionality to the device. Without the code that add functionality, the firmware responds to all standards requests, fulfilling the entire protocol (including device enumeration), but with no practical application. Following we'll see how codes for custom requests can be added to the core.
+
+First let's see how the source code is organized. The source files can be divided into two groups: core files and interface files.
+
+Core Files:
+It's the files that make possible all USB communication. No need to be modified to add features.
+
+ * isr.asm:  File that contains the code responsible for interrupt service routine (ISR) described above.
+ * main.asm: Contains the MainLoop code, also already described above. It makes the integration of all interface files with the firmware core. It has three functions of the API interface used by custom code: SetFreeAndReturn, SetReadyAndReturn e ComposeNullAndReturn.
+ * func.asm: It has general functions used by both the core and the API interface.
+ * stdreq.asm: Implements all standard requests made ​​by the Host. It is used only by the core.
+
+<br>
+Interface files:
+These files are the interface between the core and the user code. We should edit them to add new functionalities.
+
+ * vreq.asm: This is the main interface file. All requests not recognized by the core (vendor requests) are redirected to here via a jump to the label VendorReq. This is where we insert the code that handles custom control requests (remember that our device works always with Control Transfers). In short, the code flow will be on the label VendorReq whenever we have data from the SETUP stage or when data are requested during DATA stage, ie, on device-to-host direction (IN).
+ * out.asm: When receiving data from an OUT token, flow is transfered to this file at ProcessOut label. We may understand this point as a callback function for OUT packets. An OUT package can occur in both DATA stage (host-to-device direction) and during the STATUS stage.
+ * cvar.inc:  All new variables used by user code must be added to this file.
+ * setup.inc: This is the file that allows you to declare initial settings. Anything to do after PIC reset and before it starts accepting interruptions must be declared here.
+ * action.inc: From this file, you can interact directly with the MainLoop to check some state seen from the ACTION_FLAG. In fact, any action that we want to run directly into the MainLoop must be declared here.
+
+Interface API:
+The interface API has a set of simplified functions and some adjustment variables to be used by custom code to perform some points required by the USB protocol.
+
+SetFreeAndReturn - Since MainLoop transfers flow control through a call instruction, the user code shall perform a return  to transfer the flow back to MainLoop. SetFreeAndReturn set ACTION_FLAG free (AF_FREE value) and returns flow to MainLoop (return instruction). It's usually used to ignore requests not recognized.
+
+Type: label<br>
+Usage mode: goto<br>
+Parameters: none<br>
+<hr>
+
+SetReadyAndReturn - Tells the core that response in TX_BUFFER is ready to be sent and transfer the flow back to MainLoop. Must be used always after the assembly of the response in TX_BUFFER.
+
+Type: label<br>
+Usage mode: goto<br>
+Parameters: none<br>
+<hr>
+
+ComposeNullAndReturn - Build a zero length data packet (in TX_BUFFER), ie, without any information. Reply with a null data packet is part of the protocol during STATUS stage. We run it everytime we have received a host-to-device request.
+
+Type: label<br>
+Usage mode: goto<br>
+Parameters: none<br>
+<hr>
+
+TX_LEN - Put in this variable the total number of bytes to send in TX_BUFFER, including PID (1byte) and CRC16 (2bytes).
+
+Type: adjustment variable<br>
+<hr>
+
+PENDING_BYTES - This variable is used by the ISR to determine whether to inform the MainLoop if there are pending data (bit 0 to logic level 1) to be sent after the sending of the TX_BUFFER content. If bit 0 is cleared, completes the sending process. The variable is used only when we have answers with size larger than 8 bytes, in this case multi data stages happens.
+
+Type: adjustment variable<br>
+<hr>
+
+FRAME_NUMBER - When we send responses larger than 8 bytes, our message is divided into multiple packets until the last byte is sent. This variable controls the transmission of multiple packets. It must contains the frame number of the answer.
+
+Type: adjustment variable<br>
+<hr>
+
+DoCrc - This function calculates the CRC16 of the message and put result in the correct position of the send buffer. Should be called after assembly of the response TX_BUFFER.
+
+Type: sub-routine<br>
+Usage mode: call<br>
+Parameters: 2<br>
+`<COUNT>` Message size (payload) in the packet, in bytes. Remember that Low Speed ​​devices send a maximum of 8 bytes per packet.<br>
+`<FSR>` Address of the first byte in message (payload).<br>
+<hr>
+
+InsertStuff - After preparing TX_BUFFER with all data message and perform the function for calculating the CRC16 (DoCrc), InsertStuff function must be called to insert the Bit Stuffing.
+
+Type: sub-routine<br>
+Usage mode: call<br>
+Parameters: 1<br>
+`<TX_LEN>` Total size of package, including PID and CRC16.<br>
+<hr>
+
+PreInitTXBuffer - Whenever the host requests data to the device, is also reported in the request which should be the total size in bytes of the response sent by the device. This number can be checked in TOTAL_LEN. The PreInitTXBuffer function use TOTAL_LEN to automatically adjust the values ​​of TX_LEN, COUNT for DoCrc, PENDING_BYTES, FRAME_NUMBER addition to making the adjustment of Data toggle.
+
+Type: sub-routine<br>
+Usage mode: call<br>
+Parameters: none<br>
