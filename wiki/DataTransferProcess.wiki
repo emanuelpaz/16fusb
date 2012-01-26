@@ -1,6 +1,6 @@
-#summary One-sentence summary of this page.
+#summary Data Transfer Process
 
-= Data transfer process =
+= Data Transfer Process =
 
 The transfer process starts when the PIC receives the first positive going pulse of the Sync Pattern (coming from D+) on the external interrupt pin (INT/RB0) initalizing the interrupt service (ISR). At the end of the Sync Pattern, ISR receives and immediately saves the bits sent by host in a buffer (RX_BUFFER)  until the end of packet (EOP) is detected. Each bit is read in the receiving loop at the middle of the sample.
 
