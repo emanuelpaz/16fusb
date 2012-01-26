@@ -1,3 +1,5 @@
+#summary Driver install
+
 = Driver =
 
 For communication between a USB device and the host computer, obviously, we need an application and a driver on the operating system to interface with this device. In the 16FUSB case, the driver used for both Windows and Linux is the libusb. The libusb is a driver/library that provides access to USB devices for user-level applications. With libusb is possible to exchange messages between your application and the USB hardware without the need to write a specific driver for your device. Its API is very straightforward and easy to use. Don't miss http://www.libusb.org/  to understand more about the project.
