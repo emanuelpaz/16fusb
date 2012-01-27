@@ -10,7 +10,7 @@ Core Files:
 It's the files that make possible all USB communication. No need to be modified to add features.
 
  * isr.asm:  File that contains the code responsible for interrupt service routine (ISR) described above.
- * main.asm: Contains the MainLoop code, also already described above. It makes the integration of all interface files with the firmware core. It has three functions of the API interface used by custom code: SetFreeAndReturn, SetReadyAndReturn e ComposeNullAndReturn.
+ * main.asm: Contains the `MainLoop` code, also already described above. It makes the integration of all interface files with the firmware core. It has three functions of the API interface used by custom code: `SetFreeAndReturn`, `SetReadyAndReturn` e `ComposeNullAndReturn`.
  * func.asm: It has general functions used by both the core and the API interface.
  * stdreq.asm: Implements all standard requests made ​​by the Host. It is used only by the core.
 
@@ -22,7 +22,7 @@ These files are the interface between the core and the user code. We should edit
  * out.asm: When receiving data from an OUT token, flow is transfered to this file at ProcessOut label. We may understand this point as a callback function for OUT packets. An OUT package can occur in both DATA stage (host-to-device direction) and during the STATUS stage.
  * cvar.inc:  All new variables used by user code must be added to this file.
  * setup.inc: This is the file that allows you to declare initial settings. Anything to do after PIC reset and before it starts accepting interruptions must be declared here.
- * action.inc: From this file, you can interact directly with the MainLoop to check some state seen from the ACTION_FLAG. In fact, any action that we want to run directly into the MainLoop must be declared here.
+ * action.inc: From this file, you can interact directly with the `MainLoop` to check some state seen from the ACTION_FLAG. In fact, any action that we want to run directly into the MainLoop must be declared here.
 
 Interface API:
 The interface API has a set of simplified functions and some adjustment variables to be used by custom code to perform some points required by the USB protocol.
