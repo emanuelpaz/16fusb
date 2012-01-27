@@ -1,4 +1,4 @@
-#summary Data Transfer Process
+#summary Data transfer process
 
 = Data Transfer Process =
 
