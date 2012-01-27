@@ -2,7 +2,7 @@
 
 = Data Transfer Process =
 
-The transfer process starts when the PIC receives the first positive going pulse of the Sync Pattern (coming from D+) on the external interrupt pin (INT/RB0) initalizing the interrupt service (ISR). At the end of the Sync Pattern, ISR receives and immediately saves the bits sent by host in a buffer (RX_BUFFER)  until the end of packet (EOP) is detected. Each bit is read in the receiving loop at the middle of the sample.
+The transfer process starts when the PIC receives the first positive going pulse of the Sync Pattern (coming from D+) on the external interrupt pin (INT/RB0) initializing the interrupt service (ISR). At the end of the Sync Pattern, ISR receives and immediately saves the bits sent by host in a buffer (RX_BUFFER)  until the end of packet (EOP) is detected. Each bit is read in the receiving loop at the middle of the sample.
 
 After the EOP detection, the type of package that has just arrived is checked. If it's a Token, its destination address is checked to see if data is actually for the device. These two checks are done even before removing the NRZI encoding, because the device is subjected to a maximum time to send a response to the host. This maximum time, in our case, would be easily exceeded if we wait the completion of the decoding process. If the package is really for the device, ACTION_FLAG is filled with a value that will inform MainLoop if the Token is SETUP or OUT (IN will be seen later). This value tells the MainLoop what to do with the data packet coming next.
 
