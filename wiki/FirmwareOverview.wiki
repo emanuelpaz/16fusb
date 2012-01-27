@@ -27,7 +27,7 @@ In general the firmware, which was written in assembly, can be divided into two 
  * If the packet is an IN Token, verifies through ACTION_FLAG if the answer is ready, encodes (in NRZI) and sends the entire contents of TX_BUFFER that must have been previously prepared (with bit stuff or CRC) for another routine inserted in MainLoop;
  * Set ACTION_FLAG free when there's no more data to prepare/send;
 
-<br>
+ <br>
 
 = Main Loop operations =
 
