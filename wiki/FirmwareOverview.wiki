@@ -1,4 +1,4 @@
-#summary How firmware works.
+#summary How firmware works
 
 = Overview =
 
