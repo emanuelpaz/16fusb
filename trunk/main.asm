@@ -22,7 +22,7 @@
 ;                                                                     *
 ;    Notes: This file contains the code of the main loop of the       *
 ;           the firmware. Main  loop  is  liable  for  check  the     *
-;           ACTION_FLAG and, based in it's value, take the flow to    *                                                                   *
+;           ACTION_FLAG and, based in it's value, take the flow to    *                      
 ;           correct point. The main loop is also the glue between     *
 ;           core and the custom code.                                 *
 ;                                                                     *
