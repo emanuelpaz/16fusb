@@ -1,5 +1,5 @@
 ;**********************************************************************
-;   16FUSB - USB 1.1 implemetation for PIC16F628/648                  *
+;   16FUSB - USB 1.1 implemetation for PIC16F628/628A                 *
 ;                                                                     *
 ;   Copyright (C) 2011  Emanuel Paz <efspaz@gmail.com>                *
 ;                                                                     *

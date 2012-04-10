@@ -1,5 +1,5 @@
 ;**********************************************************************
-;   16FUSB - USB 1.1 implemetation for PIC16F628/648                  *
+;   16FUSB - USB 1.1 implemetation for PIC16F628/628A                 *
 ;                                                                     *
 ;   Copyright (C) 2011  Emanuel Paz <efspaz@gmail.com>                *
 ;                                                                     *
@@ -25,10 +25,10 @@
 ;           main loop.                                                *
 ;                                                                     *
 ;     Example using a state in ACTION_FLAG:                           * 
-;	    movlw 	<SOME_STATE>                                          *
-;	    subwf 	ACTION_FLAG,W                                         *
-;	    btfsc 	STATUS,Z                                              *
-;	    call 	<Some_Proc>                                           *
+;	    movlw 	<SOME_STATE>                                  *
+;	    subwf 	ACTION_FLAG,W                                 *
+;	    btfsc 	STATUS,Z                                      *
+;	    call 	<Some_Proc>                                   *
 ;                                                                     *
 ;**********************************************************************
 
