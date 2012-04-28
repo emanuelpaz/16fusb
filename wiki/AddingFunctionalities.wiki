@@ -3,85 +3,119 @@
 = Adding Functionalities =
 
 The 16FUSB was developed as a core which, through an interface, is able to provide code that will support real functionality to the device. Without the code that add functionality, the firmware responds to all standards requests, fulfilling the entire protocol (including device enumeration), but with no practical application. Following we'll see how codes for custom requests can be added to the core.
-
 First let's see how the source code is organized. The source files can be divided into two groups: core files and interface files.
 
-Core Files:
-It's the files that make possible all USB communication. No need to be modified to add features.
+Core Files: It's the files that make possible all USB communication. No need to be modified to add features.
+ * isr.asm: File that contains the code responsible for interrupt service routine (ISR) described above.
+ * main.asm: Contains the MainLoop code, also already described above. It makes the integration of all interface files with the firmware core.
+ * func.asm: It has general functions used the core.
+ * stdreq.asm: Implements the answer for all mandatory standard requests.
 
- * isr.asm:  File that contains the code responsible for interrupt service routine (ISR) described above.
- * main.asm: Contains the `MainLoop` code, also already described above. It makes the integration of all interface files with the firmware core. It has three functions of the API interface used by custom code: `SetFreeAndReturn`, `SetReadyAndReturn` e `ComposeNullAndReturn`.
- * func.asm: It has general functions used by both the core and the API interface.
- * stdreq.asm: Implements all standard requests made ​​by the Host. It is used only by the core.
+Interface files: These files are the interface between the core and the user code. We shall edit them to add new functionalities.
+ * vreq.asm: This is the main interface file. All non standard requests are redirected to here via a “call” to the label VendorRequest. This is where we insert the code that handles custom control requests (remember that our device works always with Control Transfers). In short, the code flow will be on the label VendorRequest whenever we have data from the SETUP stage or when data are requested during DATA stage, ie, on device-to-host direction (IN).
+ * out.asm: When receiving data from an OUT token, flow is transferred to this file at ProcessOut label. We may understand this point as a callback function for OUT packets. An OUT package will be available here in DATA stage of a host-to-device request.
+ * init.asm: This is the file that allows you to declare initial settings. Anything to do after PIC reset and before it starts accepting interruptions must be declared here.<br><br>
 
+==The VendorRequest:==
+
+Every control transfer starts with a Setup stage, composed by a SETUP token packet  and a DATA0 data packet (see figure below). On table below we can see the Setup request format. Whenever a non standard request happens, the MainLoop calls VendorRequest. If you look at offset 0 description (table below), you’ll notice that VendorRequest will be called if value composed by bit 5 and 6 of bmRequestType field is not zero. These two bit defines if a request is standard, class or vendor request.<br><br>
+
+[http://www.lendlocus.com/sites/default/files/16fusb/images/setup_stage.png]<br><br>
+
+|| *Offset* || *Field* || *Size* || *Value* || *Description* ||
+|| 0      || bmRequestType || 1 || Bit-Map || *D7 Data Phase Transfer Direction* <br> 0 = Host to Device <br> 1 = Device to Host <br> D6..5 Type* <br> 0 = Standard <br> 1 = Class <br> 2 = Vendor <br> 3 = Reserved <br> *D4..0 Recipient* <br> 0 = Device <br> 1 = Interface <br> 2 = Endpoint <br> 3 = Other <br> 4..31 = Reserved ||
+|| 1 || bRequest || 1 || Value || Request ||
+|| 2 || wValue || 2 || Value || Value ||
+|| 4 || wIndex || 2 || Index or Offset || Index ||
+|| 6 ||	wLength || 2 || Count || Number of bytes to transfer if there is a data phase ||
+
+<br><br>
+In VendorRequest routine, setup data can be read in RXDATA_BUFFER, how we can see in picture below. We can read the offsets just using the form RXDATA_BUFFER+offset, ex: RXDATA_BUFFER+2 reads wValue low. The values in message fields is part of the developer’s imagination.<br><br>
+
+[http://www.lendlocus.com/sites/default/files/16fusb/images/rxdata_buffer_map.png]<br><br>
+
+All kind of requests always have a transfer direction: Device-to-Host - host expects get data from device; Host-to-Device - roughly, host sends data to device.<br><br>
+
+==Device-to-Host request:==
+
+Transfer direction can be checked on bit 7 of bmRequestType field. Once we’re on device-to-host request, we need to compose the answer, because host will send IN requests to get the device response. Thus, MainLoop delegates this to VendorRequest procedure. The answer shall fill 1 to 8 offsets of TX_BUFFER (TX_BUFFER+1 … TX_BUFFER+8). We do not need fill the three others offsets, MainLoop will do it automatically for us.<br><br>
+
+[http://www.lendlocus.com/sites/default/files/16fusb/images/tx_buffer_map.png]<br><br>
+
+Low speed devices are limited to a maximum of 8 bytes packet size. If data stage have more than 8 bytes (wLength > 8), the transaction will be divided in multiple packets. In this case you shall use the FRAME_NUMBER file register for check what part of answer host is asking.<br><br>
+
+Example: wLength = 20 <br>
+      Host ask for first 8 bytes  → FRAME_NUMBER = 0 <br>
+      Host ask for second 8 bytes → FRAME_NUMBER = 1 <br>
+      Host ask for last 4 bytes   → FRAME_NUMBER = 2 <br>
+{{{
+DeviceToHostRequest:           
+    movlw   0x01
+    subwf   FRAME_NUMBER,W
+    btfsc   STATUS,Z
+    goto    Answer_Frame1
+    movlw   0x02
+    subwf   FRAME_NUMBER,W
+    btfsc   STATUS,Z
+    goto    Answer_Frame2
+
+Answer_Frame0:
+  movlw    0x55
+  movwf    TX_BUFFER+1
+
+  movlw    0xAA
+  movwf    TX_BUFFER+2
+
+  ...
+
+  movlw   0x55
+  movwf    TX_BUFFER+8
+ 
+  return
+
+Answer_Frame1: 
+  ...
+
+Answer_Frame2: 
+  ...
+}}}
 <br>
-Interface files:
-These files are the interface between the core and the user code. We should edit them to add new functionalities.
 
- * vreq.asm: This is the main interface file. All requests not recognized by the core (vendor requests) are redirected to here via a jump to the label VendorReq. This is where we insert the code that handles custom control requests (remember that our device works always with Control Transfers). In short, the code flow will be on the label VendorReq whenever we have data from the SETUP stage or when data are requested during DATA stage, ie, on device-to-host direction (IN).
- * out.asm: When receiving data from an OUT token, flow is transfered to this file at ProcessOut label. We may understand this point as a callback function for OUT packets. An OUT package can occur in both DATA stage (host-to-device direction) and during the STATUS stage.
- * cvar.inc:  All new variables used by user code must be added to this file.
- * setup.inc: This is the file that allows you to declare initial settings. Anything to do after PIC reset and before it starts accepting interruptions must be declared here.
- * action.inc: From this file, you can interact directly with the `MainLoop` to check some state seen from the ACTION_FLAG. In fact, any action that we want to run directly into the MainLoop must be declared here.
+==Host-to-Device request:==
 
-Interface API:
-The interface API has a set of simplified functions and some adjustment variables to be used by custom code to perform some points required by the USB protocol.
+Non standard Host-to-Device request are also always treated firstly by VendorRequest, and only by it if we do not have data stage. For request with data stage, after Setup, host will send OUT packet and MainLoop will transfer control to ProcessOut (out.asm). At this point, RXDATA_BUFFER will reflect data stage content.
 
-SetFreeAndReturn - Since MainLoop transfers flow control through a call instruction, the user code shall perform a return  to transfer the flow back to MainLoop. SetFreeAndReturn set ACTION_FLAG free (AF_FREE value) and returns flow to MainLoop (return instruction). It's usually used to ignore requests not recognized.
+For transaction with more than 8 bytes, maybe you need to know which Setup request comes OUT packets. Any Setup information will only be available in VendorRequest. This is a good chance to save some information to be used later. For example, if our requests are based in bRequest field, at VendorRequest we can save it in a overlay or shared area (see 16FUSB RAM use) and make a query for its value later in ProcessOut to know how to proceed with the data in RXDATA_BUFFER.<br><br>
 
-Type: label<br>
-Usage mode: goto<br>
-Parameters: none<br>
-<hr>
+==16FUSB RAM use:==
 
-SetReadyAndReturn - Tells the core that response in TX_BUFFER is ready to be sent and transfer the flow back to MainLoop. Must be used always after the assembly of the response in TX_BUFFER.
+The core of 16FUSB only uses Bank 0 including some positions of shared area (mirrored). On Bank 0, you can use free positions of shared area and LOCAL_OVERLAY section. To see where LOCAL_OVERLAY start, look at main.asm. For example, in 1.1 version it start at 0x4F address (LOCAL_OVERLAY  UDATA_OVR   0x4F). Using LOCAL_OVERLAY you have the advantage of don’t worry about memory banks.
 
-Type: label<br>
-Usage mode: goto<br>
-Parameters: none<br>
-<hr>
+Bank 1 and 2 are totally free and can be all used by the functionality. Don’t forget to use “banksel” directive to select the right bank for your file register if you use other banks than Bank 0.
 
-ComposeNullAndReturn - Build a zero length data packet (in TX_BUFFER), ie, without any information. Reply with a null data packet is part of the protocol during STATUS stage. We run it everytime we have received a host-to-device request.
+Whenever you need to save information to query later, you shall save it in a overlay or shared area not used by core. Using Bank 1 and 2, you have assurance that the file registers will not be modified by 16FUSB core. Notice that LOCAL_OVERLAY is ever overwritten by core as it is a temporary area.<br>
 
-Type: label<br>
-Usage mode: goto<br>
-Parameters: none<br>
-<hr>
+Example:
+{{{
+(vreq.asm)
+;Bank 1 file registers
+MYAPP_OVERLAY	UDATA_OVR 	0xA0
 
-TX_LEN - Put in this variable the total number of bytes to send in TX_BUFFER, including PID (1byte) and CRC16 (2bytes).
+MYFILE		RES	1
 
-Type: adjustment variable<br>
-<hr>
+(out.asm)
+;Bank 1 file registers
+MYAPP_OVERLAY	UDATA_OVR 	0xA0
 
-PENDING_BYTES - This variable is used by the ISR to determine whether to inform the MainLoop if there are pending data (bit 0 to logic level 1) to be sent after the sending of the TX_BUFFER content. If bit 0 is cleared, completes the sending process. The variable is used only when we have answers with size larger than 8 bytes, in this case multi data stages happens.
+;MYFILE here will access the same content that MYFILE in vreq.asm
+MYFILE		RES	1
+}}}
 
-Type: adjustment variable<br>
-<hr>
+If you don’t need save data for query later, you can leave the linker decide the registers addresses. Banksel directive still must be used as you don’t know where linker will put your variable.<br>
 
-FRAME_NUMBER - When we send responses larger than 8 bytes, our message is divided into multiple packets until the last byte is sent. This variable controls the transmission of multiple packets. It must contains the frame number of the answer.
+Example:
+{{{
+MYAPP_VARIABLES	UDATA
 
-Type: adjustment variable<br>
-<hr>
-
-DoCrc - This function calculates the CRC16 of the message and put result in the correct position of the send buffer. Should be called after assembly of the response TX_BUFFER.
-
-Type: sub-routine<br>
-Usage mode: call<br>
-Parameters: 2<br>
-`<COUNT>` Message size (payload) in the packet, in bytes. Remember that Low Speed ​​devices send a maximum of 8 bytes per packet.<br>
-`<FSR>` Address of the first byte in message (payload).<br>
-<hr>
-
-InsertStuff - After preparing TX_BUFFER with all data message and perform the function for calculating the CRC16 (DoCrc), InsertStuff function must be called to insert the Bit Stuffing.
-
-Type: sub-routine<br>
-Usage mode: call<br>
-Parameters: 1<br>
-`<TX_LEN>` Total size of package, including PID and CRC16.<br>
-<hr>
-
-PreInitTXBuffer - Whenever the host requests data to the device, is also reported in the request which should be the total size in bytes of the response sent by the device. This number can be checked in TOTAL_LEN. The PreInitTXBuffer function use TOTAL_LEN to automatically adjust the values ​​of TX_LEN, COUNT for DoCrc, PENDING_BYTES, FRAME_NUMBER addition to making the adjustment of Data toggle.
-
-Type: sub-routine<br>
-Usage mode: call<br>
-Parameters: none<br>
+MYFILE		RES	1
+}}}
