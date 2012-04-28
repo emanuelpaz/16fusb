@@ -1,7 +1,7 @@
 ;**********************************************************************
 ;   16FUSB - USB 1.1 implemetation for PIC16F628/628A                 *
 ;                                                                     *
-;   Copyright (C) 2011  Emanuel Paz <efspaz@gmail.com>                *
+;   Copyright (C) 2011-2012  Emanuel Paz <efspaz@gmail.com>           *
 ;                                                                     *
 ;   This program is free software; you can redistribute it and/or     *
 ;   modify it under the terms of the GNU General Public License as    *
@@ -10,22 +10,45 @@
 ;                                                                     *
 ;**********************************************************************
 ;                                                                     *
-;    Filename:        dio.inc                                         *
+;    Filename:        vreq.asm                                        *
 ;    Date:                                                            *
 ;    Author:          Emanuel Paz                                     *
 ;                                                                     *
 ;**********************************************************************
 ;                                                                     *
-;    Files required:                                                  *
+;    Notes: All vendor/class requests goes here.                      *
 ;                                                                     *
-;**********************************************************************
-;                                                                     *
-;    Notes: DirectIO implementation. This code can be used to handle  *
+;           DirectIO implementation. This code can be used to handle  *
 ;           8 bits data via PIC's io pins. More details in API doc.   *
 ;                                                                     *
-;**********************************************************************
+;**********************************************************************	
 
 
+    #include    "def.inc"
+
+    ;From MAIN_VARIABLES (main.asm) -----------------------------------
+    extern      RXDATA_BUFFER
+
+    ;From ISR_VARIABLES (isr.asm) -------------------------------------
+    extern      TX_BUFFER
+
+    ;From ISR_SHARED_INTERFACE (isr.asm) ------------------------------
+    extern      FRAME_NUMBER
+
+
+LOCAL_OVERLAY           UDATA_OVR   0x4F
+
+TMP                     RES     D'1'    ;General purpose file
+
+    	
+    ;Local labels to export
+    global      VendorRequest
+
+
+
+VENDOR_REQUEST  CODE
+
+VendorRequest:
 ;DirectIO Vendor request implementation
     btfss   RXDATA_BUFFER,7
     goto    Vreq_HostToDevice
@@ -36,7 +59,7 @@ VReq_DeviceToHost:
     btfsc   STATUS,Z
     goto    DirectIO_Read
 
-    goto    SetFreeAndReturn        ;If not recognized, set it free and return
+    return
 
 Vreq_HostToDevice:
     movlw   0x01
@@ -44,7 +67,7 @@ Vreq_HostToDevice:
     btfsc   STATUS,Z
     goto    DirectIO_Write
 
-    goto    SetFreeAndReturn        ;If not recognized, set it free and return
+    return
 
 DirectIO_Write:
     btfsc   RXDATA_BUFFER+2,0
@@ -56,7 +79,7 @@ DirectIO_Write:
     btfsc   RXDATA_BUFFER+2,3
     goto    DIO_WriteCtrl
 
-    goto    SetFreeAndReturn        ;If not recognized, set it free and return
+   return
 
 DirectIO_Read:
     btfsc   RXDATA_BUFFER+2,0
@@ -70,7 +93,7 @@ DirectIO_Read:
     btfsc   RXDATA_BUFFER+2,4
     goto    DIO_ReadStatus
 
-    goto    SetFreeAndReturn        ;If not recognized, set it free and return
+    return
 
 DIO_WriteByte:
     ;Put data port in output mode
@@ -98,11 +121,8 @@ DIO_WriteByte:
     andwf   RXDATA_BUFFER+4,W       ;wIndex Lo
     iorwf   TMP,W
     movwf   PORTA
-
-    ;Host will ask for confirmation with a IN Token
-    ;and we answer with a null data packet.
-    goto    ComposeNullAndReturn
-
+    
+    return
 
 DIO_WriteLowNibble:
     ;Put low nibble in output mode
@@ -126,9 +146,7 @@ DIO_WriteLowNibble:
     iorwf   TMP,W
     movwf   PORTA
 
-    ;Host will ask for confirmation with a IN Token
-    ;and we answer with a null data packet.
-    goto    ComposeNullAndReturn
+    return
 
 DIO_WriteHighNibble:
     ;Put high nibble in output mode
@@ -147,9 +165,7 @@ DIO_WriteHighNibble:
     iorwf   TMP,W
     movwf   PORTB
 
-    ;Host will ask for confirmation with a IN Token
-    ;and we answer with a null data packet.
-    goto    ComposeNullAndReturn
+    return
 
 DIO_WriteCtrl:
     ;Put RA3-RA4 in output mode
@@ -170,9 +186,7 @@ DIO_WriteCtrl:
     iorwf   TMP,W
     movwf   PORTA
 
-    ;Host will ask for confirmation with a IN Token
-    ;and we answer with a null data packet.
-    goto    ComposeNullAndReturn
+    return
 
 DIO_ReadByte:
     ;Put data port in input mode
@@ -274,23 +288,9 @@ DIO_ReadStatus:
 ;Prapare TX_BUFFER
 ;TMP must have the byte with answer.
 DIO_PrepareAnswer:
-    movlw   TX_BUFFER+1             ;Initial Address of data
-    movwf   FSR
-
-    movlw   DATA1PID                ;DATA1 PID
-    movwf   TX_BUFFER
-
     movf    TMP,W                   ;Data readed from pins
     movwf   TX_BUFFER+1
+    
+    return
 
-    movlw   0x01
-    movwf   COUNT
-    call    DoCrc
-
-    movlw   D'4'
-    movwf   TX_LEN
-
-    call    InsertStuff
-
-    bcf     PENDING_BYTES,0
-    goto    SetReadyAndReturn
+	END

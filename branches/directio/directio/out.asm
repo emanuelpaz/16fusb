@@ -1,7 +1,7 @@
 ;**********************************************************************
 ;   16FUSB - USB 1.1 implemetation for PIC16F628/628A                 *
 ;                                                                     *
-;   Copyright (C) 2011  Emanuel Paz <efspaz@gmail.com>                *
+;   Copyright (C) 2011-2012  Emanuel Paz <efspaz@gmail.com>           *
 ;                                                                     *
 ;   This program is free software; you can redistribute it and/or     *
 ;   modify it under the terms of the GNU General Public License as    *
@@ -10,34 +10,34 @@
 ;                                                                     *
 ;**********************************************************************
 ;                                                                     *
-;    Filename:        vreq.asm                                        *
+;    Filename:        out.asm                                         *
 ;    Date:                                                            *
 ;    Author:          Emanuel Paz                                     *
 ;                                                                     *
 ;**********************************************************************
 ;                                                                     *
-;    Files required: header.inc, cvar.inc                             *
+;    Notes: The function ProcessOut in this file can be treated as    *
+;           a callback for Out packages sended by Host.               *
 ;                                                                     *
 ;**********************************************************************
-;                                                                     *
-;    Notes: All custom (vendor) requests goes here.                   *
-;                                                                     *
-;**********************************************************************	
 
 
-    include     "header.inc"
-    include     "cvar.inc"
-	
-    global      VendorRequest
+    #include     "def.inc"
 
-    extern      SetFreeAndReturn, SetReadyAndReturn, ComposeNullAndReturn
-    extern      PreInitTXBuffer, DoCrc, InsertStuff
+    ;From MAIN_VARIABLES (main.asm) -----------------------------------
+    extern      RXDATA_BUFFER
 
-VENDOR_REQUEST  CODE
+    ;Local labels to export
+    global      ProcessOut
 
-VendorRequest:
 
-    ;DirectIO implementation
-    include "dio.inc"
 
-	END
+PROCESS_OUT     CODE
+
+ProcessOut:
+    
+    ;Custom code goes here
+    
+    return
+    
+    END

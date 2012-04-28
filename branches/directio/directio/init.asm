@@ -1,7 +1,7 @@
 ;**********************************************************************
 ;   16FUSB - USB 1.1 implemetation for PIC16F628/628A                 *
 ;                                                                     *
-;   Copyright (C) 2011  Emanuel Paz <efspaz@gmail.com>                *
+;   Copyright (C) 2011-2012  Emanuel Paz <efspaz@gmail.com>           *
 ;                                                                     *
 ;   This program is free software; you can redistribute it and/or     *
 ;   modify it under the terms of the GNU General Public License as    *
@@ -10,34 +10,37 @@
 ;                                                                     *
 ;**********************************************************************
 ;                                                                     *
-;    Filename:        out.asm                                         *
+;    Filename:        init.asm                                        *
 ;    Date:                                                            *
 ;    Author:          Emanuel Paz                                     *
 ;                                                                     *
 ;**********************************************************************
 ;                                                                     *
-;    Files required: header.inc, cvar.inc                             *
-;                                                                     *
-;**********************************************************************
-;                                                                     *
-;    Notes: The function ProcessOut in this file can be treated as    *
-;           a callback for Out packages sended by Host.               *
+;    Notes: Anything to do after the processor reset and before       *
+;           accepting interrupts goes here.                           *
 ;                                                                     *
 ;**********************************************************************
 
+    #include    "def.inc"
 
-    include     "header.inc"
-    include     "cvar.inc"    
+    global      InitSetup
+
+
+
+INIT_SETUP     CODE
+
+InitSetup:
+
+    ;by DirectIO module    
+    bcf     T1CON,T1OSCEN
+    movlw   B'00000111'
+    movwf   CMCON
+    clrf    CCP1CON
+
+    clrf    PORTA
+    clrf    PORTB
     
-    global      ProcessOut
-
-    extern      SetFreeAndReturn, SetReadyAndReturn, ComposeNullAndReturn
-    extern      PreInitTXBuffer, DoCrc, InsertStuff
-
-PROCESS_OUT     CODE
-ProcessOut:
-
-    
-    goto    SetFreeAndReturn
+    return
 
     END
+	
