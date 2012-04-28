@@ -1,7 +1,7 @@
 ;**********************************************************************
 ;   16FUSB - USB 1.1 implemetation for PIC16F628/628A                 *
 ;                                                                     *
-;   Copyright (C) 2011  Emanuel Paz <efspaz@gmail.com>                *
+;   Copyright (C) 2011-2012  Emanuel Paz <efspaz@gmail.com>           *
 ;                                                                     *
 ;   This program is free software; you can redistribute it and/or     *
 ;   modify it under the terms of the GNU General Public License as    *
@@ -10,34 +10,30 @@
 ;                                                                     *
 ;**********************************************************************
 ;                                                                     *
-;    Filename:        vreq.asm                                        *
+;    Filename:        init.asm                                        *
 ;    Date:                                                            *
 ;    Author:          Emanuel Paz                                     *
 ;                                                                     *
 ;**********************************************************************
 ;                                                                     *
-;    Files required: header.inc, cvar.inc                             *
+;    Notes: Anything to do after the processor reset and before       *
+;           accepting interrupts goes here.                           *
 ;                                                                     *
 ;**********************************************************************
-;                                                                     *
-;    Notes: All custom (vendor) requests goes here.                   *
-;                                                                     *
-;**********************************************************************	
+
+    #include    "def.inc"
+
+    global      InitSetup
 
 
-    include     "header.inc"
-    include     "cvar.inc"
-	
-    global      VendorRequest
 
-    extern      SetFreeAndReturn, SetReadyAndReturn, ComposeNullAndReturn
-    extern      PreInitTXBuffer, DoCrc, InsertStuff
+INIT_SETUP     CODE
 
-VENDOR_REQUEST  CODE
-
-VendorRequest:
+InitSetup:
 
     ;Custom code goes here
+    
+    return
 
-
-	END
+    END
+	

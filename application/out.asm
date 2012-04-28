@@ -1,7 +1,7 @@
 ;**********************************************************************
 ;   16FUSB - USB 1.1 implemetation for PIC16F628/628A                 *
 ;                                                                     *
-;   Copyright (C) 2011  Emanuel Paz <efspaz@gmail.com>                *
+;   Copyright (C) 2011-2012  Emanuel Paz <efspaz@gmail.com>           *
 ;                                                                     *
 ;   This program is free software; you can redistribute it and/or     *
 ;   modify it under the terms of the GNU General Public License as    *
@@ -16,28 +16,28 @@
 ;                                                                     *
 ;**********************************************************************
 ;                                                                     *
-;    Files required: header.inc, cvar.inc                             *
-;                                                                     *
-;**********************************************************************
-;                                                                     *
 ;    Notes: The function ProcessOut in this file can be treated as    *
 ;           a callback for Out packages sended by Host.               *
 ;                                                                     *
 ;**********************************************************************
 
 
-    include     "header.inc"
-    include     "cvar.inc"    
-    
+    #include     "def.inc"
+
+    ;From MAIN_VARIABLES (main.asm) -----------------------------------
+    extern      RXDATA_BUFFER
+
+    ;Local labels to export
     global      ProcessOut
 
-    extern      SetFreeAndReturn, SetReadyAndReturn, ComposeNullAndReturn
-    extern      PreInitTXBuffer, DoCrc, InsertStuff
+
 
 PROCESS_OUT     CODE
+
 ProcessOut:
-
     
-    goto    SetFreeAndReturn
-
+    ;Custom code goes here
+    
+    return
+    
     END
