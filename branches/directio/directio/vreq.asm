@@ -288,7 +288,7 @@ DIO_ReadStatus:
 ;Prapare TX_BUFFER
 ;TMP must have the byte with answer.
 DIO_PrepareAnswer:
-    movf    TMP,W                   ;Data readed from pins
+    movf    TMP,W                   ;Data read from pins
     movwf   TX_BUFFER+1
     
     return
