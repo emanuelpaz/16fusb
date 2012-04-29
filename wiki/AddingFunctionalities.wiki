@@ -23,7 +23,7 @@ Every control transfer starts with a Setup stage, composed by a SETUP token pack
 [http://www.lendlocus.com/sites/default/files/16fusb/images/setup_stage.png]<br><br>
 
 || *Offset* || *Field* || *Size* || *Value* || *Description* ||
-|| 0      || bmRequestType || 1 || Bit-Map || *D7 Data Phase Transfer Direction* <br> 0 = Host to Device <br> 1 = Device to Host <br> D6..5 Type* <br> 0 = Standard <br> 1 = Class <br> 2 = Vendor <br> 3 = Reserved <br> *D4..0 Recipient* <br> 0 = Device <br> 1 = Interface <br> 2 = Endpoint <br> 3 = Other <br> 4..31 = Reserved ||
+|| 0      || bmRequestType || 1 || Bit-Map || *D7 Data Phase Transfer Direction* <br> 0 = Host to Device <br> 1 = Device to Host <br> *D6..5 Type* <br> 0 = Standard <br> 1 = Class <br> 2 = Vendor <br> 3 = Reserved <br> *D4..0 Recipient* <br> 0 = Device <br> 1 = Interface <br> 2 = Endpoint <br> 3 = Other <br> 4..31 = Reserved ||
 || 1 || bRequest || 1 || Value || Request ||
 || 2 || wValue || 2 || Value || Value ||
 || 4 || wIndex || 2 || Index or Offset || Index ||
