@@ -111,7 +111,7 @@ MYAPP_OVERLAY	UDATA_OVR 	0xA0
 MYREG		RES	1
 }}}
 
-You also may simple use a udata section and just leave the linker decide the registers addresses. It still can be accessible by other objects if you use global directive. Anyway, banksel directive still must be used as you don’t know where linker will put your variable.<br>
+You also may simple use an udata section and just leave the linker decide the registers addresses. It still can be accessible by other objects if you use global directive. Anyway, banksel directive still must be used as you don’t know where linker will put your variable.<br>
 
 Example:
 {{{
