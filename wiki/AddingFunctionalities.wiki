@@ -85,7 +85,7 @@ Answer_Frame2:
 
 Non standard Host-to-Device request are also always treated firstly by VendorRequest, and only by it if we do not have data stage. For request with data stage, after Setup, host will send OUT packet and MainLoop will transfer control to ProcessOut (out.asm). At this point, RXDATA_BUFFER will reflect data stage content.
 
-For transaction with more than 8 bytes, maybe you need to know which Setup request comes OUT packets. Any Setup information will only be available in VendorRequest. This is a good chance to save some information to be used later. For example, if our requests are based in bRequest field, at VendorRequest we can save it in a overlay or shared area (see 16FUSB RAM use) and make a query for its value later in ProcessOut to know how to proceed with the data in RXDATA_BUFFER.<br><br>
+For transaction with more than 8 bytes, maybe you need to know which Setup request comes OUT packets. Any Setup information will only be available in VendorRequest. This is a good chance to save some information to be used later. For example, if our requests are based in bRequest field, at VendorRequest we can save it in a overlay section (see 16FUSB RAM use) and make a query for its value later in ProcessOut to know how to proceed with the data in RXDATA_BUFFER.<br><br>
 
 ==16FUSB RAM use:==
 
@@ -93,9 +93,9 @@ The core of 16FUSB only uses Bank 0 including some positions of shared area (mir
 
 Bank 1 and 2 are totally free and can be all used by the functionality. Don’t forget to use “banksel” directive to select the right bank for your file register if you use other banks than Bank 0.
 
-Whenever you need to save information to query later, you shall save it in a overlay or shared area not used by core. Using Bank 1 and 2, you have assurance that the file registers will not be modified by 16FUSB core. Notice that LOCAL_OVERLAY is ever overwritten by core as it is a temporary area.<br>
+Whenever you need to save information to query later in other objects, you shall save it in a overlay section not used by core. Using Bank 1 and 2, you have assurance that the file registers will not be modified by 16FUSB core. Notice that LOCAL_OVERLAY is ever overwritten by core as it is a temporary area.<br>
 
-Example:
+Example: Different objects accessing same information.
 {{{
 (vreq.asm)
 ;Bank 1 file registers
@@ -111,7 +111,7 @@ MYAPP_OVERLAY	UDATA_OVR 	0xA0
 MYFILE		RES	1
 }}}
 
-If you don’t need save data for query later, you can leave the linker decide the registers addresses. Banksel directive still must be used as you don’t know where linker will put your variable.<br>
+If you need to save data for query later, but not in other objects, you can just leave the linker decide the registers addresses. Banksel directive still must be used as you don’t know where linker will put your variable.<br>
 
 Example:
 {{{
