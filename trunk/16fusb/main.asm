@@ -381,6 +381,10 @@ SetFreeAndReturn:
     return
         
 CheckReset:
+    ;Select BANK 0
+    bcf     STATUS,RP0
+    bcf     STATUS,RP1
+
     movlw   0x3                     ;For 15 instructions (2.5us)
     movwf   COUNT
 CR_Loop:
