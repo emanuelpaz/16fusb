@@ -223,6 +223,15 @@ DataPack:
     subwf   FSR,W
     movwf   RX_LEN
 
+    ;We're in a Data packet, so if ACTION_FLAG is
+    ;setted with AF_TX_BUFF_READY we must make it free.
+    movlw   AF_TX_BUFF_READY
+    subwf   ACTION_FLAG,W
+    btfss   STATUS,Z
+    goto    $+D'3'
+    movlw   AF_FREE
+    movwf   ACTION_FLAG
+
     movlw   AF_FREE
     subwf   ACTION_FLAG,W           ;Checks ACTION_FLAG
     btfsc   STATUS,Z
