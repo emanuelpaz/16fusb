@@ -33,6 +33,8 @@
 
 ISR_SHARED_INTERFACE    UDATA_SHR
 
+W_TMP                   RES     D'1'    ;File to save W
+STATUS_TMP              RES     D'1'    ;File to save STATUS
 ACTION_FLAG             RES     D'1'    ;What main loop must do
 ADDITIONAL_BITS         RES     D'1'    ;Number of additional bits(stuffing bits) to send
 FRAME_NUMBER            RES     D'1'    ;Frame number of a transaction with data larger than 8 bytes
@@ -48,8 +50,6 @@ TX_LEN                  RES     D'1'    ;Number of bytes to send in TX_BUFFER
 
 ISR_VARIABLES           UDATA   0x20
 
-W_TMP                   RES     D'1'    ;File to save W
-STATUS_TMP              RES     D'1'    ;File to save STATUS
 FSR_TMP                 RES     D'1'    ;FIle to save FSR
 TMP                     RES     D'1'    ;Temporary file
 COUNT                   RES     D'1'    ;Counter file level one
@@ -70,12 +70,11 @@ INTERRUPT_VECTOR    CODE    0x0004
     movwf   W_TMP
     swapf   STATUS,W
     movwf   STATUS_TMP
-
-    ;Select BANK 0
-    bcf     STATUS,RP0
-    bcf     STATUS,RP1
+    
+    bcf     STATUS,RP0   
 
 WaitForJ:
+    bcf     STATUS,RP1
     btfsc   PORTB,0
     goto    WaitForJ
 WaitForK:
