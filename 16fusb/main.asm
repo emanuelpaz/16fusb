@@ -130,6 +130,9 @@ Start:
 ; ---------------- Initial Setup (End) ----------------
 
 MainLoop:
+    btfss   PORTB,2                 ;Checks for Reset
+    call    CheckReset
+
     movlw   AF_DECODE_DATA
     subwf   ACTION_FLAG,W           ;Checks for DECODE_DATA
     btfsc   STATUS,Z
@@ -138,17 +141,14 @@ MainLoop:
     movlw   AF_PROC_SETUP
     subwf   ACTION_FLAG,W           ;Checks for PROC_SETUP
     btfsc   STATUS,Z
-    call    ProcessSetup
+    goto    ProcessSetup
     
     movlw   AF_PROC_OUT
     subwf   ACTION_FLAG,W           ;Checks for PROC_OUT
     btfss   STATUS,Z
     goto    $+3
     call    ProcessOut
-    call    ComposeNullAndReturn
-
-    btfss   PORTB,2                 ;Checks for Reset
-    call    CheckReset
+    goto    ComposeNullAndReturn
 
     goto    MainLoop
 
@@ -373,12 +373,12 @@ ComposeNullAndReturn:
 SetReadyAndReturn:
     movlw   AF_TX_BUFF_READY
     movwf   ACTION_FLAG
-    return
+    goto    MainLoop
 
 SetFreeAndReturn:
     movlw   AF_FREE
     movwf   ACTION_FLAG
-    return
+    goto    MainLoop
         
 CheckReset:
     ;Select BANK 0
