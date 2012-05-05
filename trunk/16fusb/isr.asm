@@ -324,22 +324,22 @@ SendTXBuffer:
     ;The next four lines takes 1 bit time (-1).
     movwf   INTCON
     movlw   0x03
-    nop
-    nop                             ;Here, 1 bit time elapsed. TRM0 += 1.
+    goto    $+D'1'                     ;Here, 1 bit time elapsed. TRM0 += 1.
 
-    ;These two 'nops' makes T0IF verification at the last cycle of bit time,
+    ;These two cycles makes T0IF verification at the last cycle of bit time,
     ;so we can jump to the EOP with only one excessive instruction cycle (166ns)
     ;in most cases. Sometimes trash bits, at the end of the package, 
     ;may occurs (see below).
-    nop
-    nop
+    goto    $+D'1'
 
 ;Send Sync
 STXB_SyncLoop:            
     xorwf   PORTB,F
     decfsz  COUNT,F
     goto    STXB_SyncLoop
-    call    WaitOneBitTime
+    
+    goto    $+D'1'
+    goto    $+D'1'
 
     ;Send TX_Buffer (doing NRZI encode)    
     btfss   INDF,0
@@ -405,8 +405,7 @@ GenEop_01:
     goto    GenEop_02
 GenEop_02:
     movlw   0x02
-    nop
-    nop
+    goto    $+D'1'
     nop
     xorwf   PORTB,F
 
@@ -437,66 +436,42 @@ SH_SyncLoop:                        ;Send Sync
     xorwf   PORTB,F
     decfsz  COUNT,F
     goto    SH_SyncLoop
-    call    WaitOneBitTime
+    
+    goto    $+D'1'
+    goto    $+D'1'
 
     ;Send HandShake PID
     btfss   TMP,0
     xorwf   PORTB,F
-    nop
-    nop
+    goto    $+D'1'
     
     btfss   TMP,1
     xorwf   PORTB,F
-    nop
-    nop
+    goto    $+D'1'
 
     btfss   TMP,2
     xorwf   PORTB,F
-    nop
-    nop
+    goto    $+D'1'
     
     btfss   TMP,3
     xorwf   PORTB,F
-    nop    
-    nop
+    goto    $+D'1'
 
     btfss   TMP,4
     xorwf   PORTB,F
-    nop
-    nop
+    goto    $+D'1'
 
     btfss   TMP,5
     xorwf   PORTB,F
-    nop
-    nop
+    goto    $+D'1'
 
     btfss   TMP,6
     xorwf   PORTB,F
-    nop
-    nop
+    goto    $+D'1'
 
     btfss   TMP,7
     xorwf   PORTB,F
-    nop
-    nop
-    movlw   0xFC
-
-    ;Send EOP
-    andwf   PORTB,F
-    goto    $+D'1'
-    movlw   0x02
+    goto    GenEop                  ;2 cycles
     
-    call    WaitOneBitTime    
-
-    xorwf   PORTB,F    
-    ;Set RB0/RB1 Input
-    bsf     STATUS,RP0
-    movlw   0x03
-    iorwf   TRISB,F
-    bcf     STATUS,RP0
-    return
-
-WaitOneBitTime:
-    return
 
     END
