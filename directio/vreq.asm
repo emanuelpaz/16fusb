@@ -195,9 +195,6 @@ DIO_ReadByte:
     iorwf   TRISB,F
     movlw   B'00000111'
     iorwf   TRISA,F
-
-    ;Read pins and put values in TMP
-    bcf     OPTION_REG,7            ;Enable pullup resistors in PORTB
     bcf     STATUS,RP0
 
     movf    PORTA,W
@@ -206,10 +203,6 @@ DIO_ReadByte:
     movf    PORTB,W
     andlw   B'11111000'
     iorwf   TMP,F
-
-    bsf     STATUS,RP0
-    bsf     OPTION_REG,7            ;Disable pullup resistors in PORTB
-    bcf     STATUS,RP0
 
     goto    DIO_PrepareAnswer
 
@@ -220,9 +213,6 @@ DIO_ReadLowNibble:
     iorwf   TRISB,F
     movlw   B'00000111'
     iorwf   TRISA,F
-
-    ;Read low niblle pins and put values in TMP
-    bcf     OPTION_REG,7            ;Enable pullup resistors in PORTB
     bcf     STATUS,RP0
 
     movf    PORTA,W
@@ -232,10 +222,6 @@ DIO_ReadLowNibble:
     andlw   B'00001000'
     iorwf   TMP,F
 
-    bsf     STATUS,RP0
-    bsf     OPTION_REG,7            ;Disable pullup resistors in PORTB
-    bcf     STATUS,RP0
-
     goto    DIO_PrepareAnswer
 
 DIO_ReadHighNibble:
@@ -243,19 +229,12 @@ DIO_ReadHighNibble:
     bsf     STATUS,RP0
     movlw   B'11110000'
     iorwf   TRISB,F
-
-    ;Read high niblle pins and put values in TMP
-    bcf     OPTION_REG,7            ;Enable pullup resistors in PORTB
     bcf     STATUS,RP0
 
     movf    PORTB,W
     andlw   B'11110000'
     movwf   TMP
     swapf   TMP,F
-
-    bsf     STATUS,RP0
-    bsf     OPTION_REG,7            ;Disable pullup resistors in PORTB
-    bcf     STATUS,RP0
 
     goto    DIO_PrepareAnswer
 
