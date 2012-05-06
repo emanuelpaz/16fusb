@@ -8,7 +8,7 @@ For communication between a USB device and the host computer, obviously, we need
 ===Windows environment===
 
 ====For both runtime and development environment:====
- * *Download the 16FUSB device driver:* <br>[http://16fusb.googlecode.com/files/16FUSB_driver-libusb-win32-1.2.5.0.zip]<br>
+ * *Download the 16FUSB device driver:* <br>[http://16fusb.googlecode.com/files/16FUSB_driver-libusb-win32-1.2.6.0.zip]<br>
 
  * *Install the device driver of the 16FUSB with the same version of the filter driver:* <br>Press *Win+R*, type *'hdwwiz'* and click *'Next'*. Choose *'Install the hardware that I manually select form a list (Advanced)'* and click *'Next'* again. Just leave the option *'Show All Devices'* go *'Next'* button. Click *'Have Disk'* button and browse to the folder you extracted the driver then choose *'16FUSB'* and click *'Next'*. Windows will warn you about driver verification. Choose *'Install Driver Anyway'* to authorize driver install. Click on the *'Finish'* to close the wizard.<br>
 
