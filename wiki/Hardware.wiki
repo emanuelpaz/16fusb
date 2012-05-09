@@ -8,3 +8,13 @@ The external interrupt pin of the PIC (RB0) is connected to pin D+ USB port. Thi
 Is easy to see that, excepting RB0, RB1, RB2 and clock pins, all others I/O PIC pins will be free to be used in customized functionalities. The reference implementation Direct I/O make it clear.
 
 [http://www.lendlocus.com/sites/default/files/16fusb/images/16FUSB_schematic.png]
+
+
+If you got some trouble in device recognition, even using zeners, is possible that interrupt is not starting correctly. Notice that PIC's external interrupt input is connected through a Schmitt Trigger buffer, so the input high voltage must be at least 0.8 x VDD. Some USB ports may not reach this value. In this case, you must connect PIC VDD through a 1N4148, and R1 to PIC VDD instead USB VCC (see image below). It will reduce the VDD voltage in 0.6V and the 3.3V of USB port will be enough to reach the Schmitt Trigger threshold.
+
+<br>
+
+[http://www.lendlocus.com/sites/default/files/16fusb/images/16FUSB_hard_adapt.png]
+
+  
+
