@@ -10,24 +10,31 @@
 ;                                                                     *
 ;**********************************************************************
 ;                                                                     *
-;    Filename:        main.asm                                        *
+;    Filename:        setup.asm                                       *
 ;    Date:                                                            *
 ;    Author:          Emanuel Paz                                     *
 ;                                                                     *
 ;**********************************************************************
 ;                                                                     *
-;    Notes: In this file you can insert initial setup code            *
-;           and something to run in loop, called by MainLoop.         *
+;    Notes: All vendor/class of control transfer requests goes here.  *
 ;                                                                     *
-;**********************************************************************
+;**********************************************************************	
 
     #include    "def.inc"
 
     ; Local labels to export
-    global  Init
-    global  Main
+    global  VendorRequest
+#if HID == 1
+    global  GetReportDescriptor
+#endif
+
+    ; (usb.asm)
+    extern  RXDATA_BUFFER
+    extern	RXDATA_LEN
 
     ; (isr.asm)
+    extern  TX_BUFFER
+    extern  FRAME_NUMBER
     extern  ACTION_FLAG
 #if INTERRUPT_IN_ENDPOINT == 1
     extern  INT_TX_BUFFER
@@ -43,24 +50,18 @@ LOCAL_OVERLAY   UDATA_OVR   0x4A+(INTERRUPT_IN_ENDPOINT*D'16')+(INTERRUPT_OUT_EN
 
 
 
-MAIN    CODE
+VENDOR_REQUEST    CODE
 
-;***************************************************************
-; Anything to do after the processor reset and before accepting 
-; interrupts goes here.
-Init:
+VendorRequest:
 
-    ;Custom code goes here
+    ; Custom code goes here
 
     return
 
-;***************************************************************
-; Code that will run in loop, called by MainLoop.
-Main:
 
-    ;Custom code goes here
+#if HID == 1
+GetReportDescriptor:
+    #include rpt_desc.inc
+#endif
 
-    return
-
-    END
-	
+	END

@@ -40,12 +40,12 @@
 
     ; (usb.asm)
     extern  RXDATA_BUFFER
-    extern  RXDATA_LEN
+    extern	RXDATA_LEN
 
 LOCAL_OVERLAY   UDATA_OVR   0x4A+(INTERRUPT_IN_ENDPOINT*D'16')+(INTERRUPT_OUT_ENDPOINT*D'14')
 
     ; Local temporary variables goes here
-
+    TMP     RES     D'1'
 
 
 PROCESS_OUT     CODE
@@ -53,6 +53,19 @@ PROCESS_OUT     CODE
 ProcessOut:
     
     ; Custom code goes here
+
+    btfss   AF_BIT_INTERRUPT        ; Is it an interrupt transfer?
+    return                          ; No
+    
+    ; Interrupt transfer found, put first byte nibble of
+    ; Output Report on RB4-RB7.
+    swapf   RXDATA_BUFFER,W
+    andlw   0xF0
+    movwf   TMP
+    movf    PORTB,W
+    andlw   0x0F
+    iorwf   TMP,W
+    movwf   PORTB
    
     return
 

@@ -137,7 +137,7 @@ INT_EP_OUT_INTERVAL     SET     0x08        ; OUT endpoint bInterval
 ;---------------------------------------------------------------------
 ; HID Interface
 
-HID                     SET     0                                 
+HID                     SET     0
 
 
     

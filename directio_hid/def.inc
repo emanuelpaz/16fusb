@@ -33,16 +33,16 @@
 ;---------------------------------------------------------------------
 ; Interrupt endpoints.
 
-;INTERRUPT_IN_ENDPOINT       SET     1       ; comment out to enable IN endpoint.
-;INT_EP_IN_INTERVAL          SET     0x08    ; IN endpoint bInterval
+INTERRUPT_IN_ENDPOINT       SET     1       ; comment out to enable IN endpoint.
+INT_EP_IN_INTERVAL          SET     0x08    ; IN endpoint bInterval
 
-;INTERRUPT_OUT_ENDPOINT      SET     1       ; comment out to enable OUT endpoint.
-;INT_EP_OUT_INTERVAL         SET     0x08    ; OUT endpoint bInterval
+INTERRUPT_OUT_ENDPOINT      SET     1       ; comment out to enable OUT endpoint.
+INT_EP_OUT_INTERVAL         SET     0x08    ; OUT endpoint bInterval
 
 ;---------------------------------------------------------------------
 ; HID Interface 
 ;  INTERRUPT_IN_ENDPOINT shall be enabled.
 ;  INTERRUPT_OUT_ENDPOINT enabled is optional.
 
-;HID                        SET      1       ; comment out to enable HID interface.
-;HID_REPORT_SIZE            SET      D'25'   ; set the HID Report Descriptor size here.
+HID                        SET      1       ; comment out to enable HID interface.
+HID_REPORT_SIZE            SET      D'25'   ; set the HID Report Descriptor size here.
