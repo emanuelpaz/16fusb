@@ -10,43 +10,47 @@
 ;                                                                     *
 ;**********************************************************************
 ;                                                                     *
-;    Filename:        vreq.asm                                        *
+;    Filename:        setup.asm                                       *
 ;    Date:                                                            *
 ;    Author:          Emanuel Paz                                     *
 ;                                                                     *
 ;**********************************************************************
 ;                                                                     *
-;    Notes: All vendor/class requests goes here.                      *
-;                                                                     *
-;           DirectIO implementation. This code can be used to handle  *
-;           8 bits data via PIC's io pins. More details in API doc.   *
+;    Notes: All vendor/class of control transfer requests goes here.  *
 ;                                                                     *
 ;**********************************************************************	
 
-
     #include    "def.inc"
 
-    ;From MAIN_VARIABLES (main.asm) -----------------------------------
-    extern      RXDATA_BUFFER
+    ; Local labels to export
+    global  VendorRequest
+#if HID == 1
+    global  GetReportDescriptor
+#endif
 
-    ;From ISR_VARIABLES (isr.asm) -------------------------------------
-    extern      TX_BUFFER
+    ; (usb.asm)
+    extern  RXDATA_BUFFER
+	extern	RXDATA_LEN
 
-    ;From ISR_SHARED_INTERFACE (isr.asm) ------------------------------
-    extern      FRAME_NUMBER
+    ; (isr.asm)
+    extern  TX_BUFFER
+    extern  FRAME_NUMBER
+    extern  ACTION_FLAG
+#if INTERRUPT_IN_ENDPOINT == 1
+    extern  INT_TX_BUFFER
+    extern  INT_TX_LEN
+    ; (usb.asm)
+    extern  PrepareIntTxBuffer
+#endif
 
 
-LOCAL_OVERLAY           UDATA_OVR   0x4F
+LOCAL_OVERLAY   UDATA_OVR   0x4A+(INTERRUPT_IN_ENDPOINT*D'16')+(INTERRUPT_OUT_ENDPOINT*D'14')
 
-TMP                     RES     D'1'    ;General purpose file
-
-    	
-    ;Local labels to export
-    global      VendorRequest
+    TMP     RES     D'1'    ;General purpose file
 
 
 
-VENDOR_REQUEST  CODE
+VENDOR_REQUEST    CODE
 
 VendorRequest:
 ;DirectIO Vendor request implementation
@@ -54,16 +58,16 @@ VendorRequest:
     goto    Vreq_HostToDevice
 
 VReq_DeviceToHost:
-    movlw   0x01
-    subwf   RXDATA_BUFFER+1,W
+    movf    RXDATA_BUFFER+1,W
+    xorlw   0x01
     btfsc   STATUS,Z
     goto    DirectIO_Read
 
     return
 
 Vreq_HostToDevice:
-    movlw   0x01
-    subwf   RXDATA_BUFFER+1,W
+    movf    RXDATA_BUFFER+1,W
+    xorlw   0x01
     btfsc   STATUS,Z
     goto    DirectIO_Write
 
@@ -271,5 +275,11 @@ DIO_PrepareAnswer:
     movwf   TX_BUFFER+1
     
     return
+
+
+#if HID == 1
+GetReportDescriptor:
+    #include rpt_desc.inc
+#endif
 
 	END
