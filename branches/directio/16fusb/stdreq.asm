@@ -21,197 +21,371 @@
 ;                                                                     *
 ;**********************************************************************
 
+    #include     "def.inc"
 
-   #include     "def.inc"
+    ; Local labels to export
+    global  GetDescriptor
+    global  GetStatus
+    global  GetConfiguration
+    global  GetInterface
+    global  SetAddress
 
-    ;From MAIN_VARIABLES (main.asm) -----------------------------------
-    extern      RXDATA_BUFFER
+    ; (usb.asm)
+    extern  RXDATA_BUFFER
 
-    ;From ISR_VARIABLES (isr.asm) -------------------------------------
-    extern      TX_BUFFER
-
-    ;From ISR_SHARED_INTERFACE (isr.asm) ------------------------------
-    extern      FRAME_NUMBER, DEVICE_ADDRESS, NEW_DEVICE_ADDRESS
-
-
-
-LOCAL_OVERLAY           UDATA_OVR   0x4F
-
-COUNT                   RES     D'1'    ;Counter file
-GEN                     RES     D'1'    ;General purpose file
-GEN2                    RES     D'1'    ;General purpose file
-
-    global     GetDescriptor, GetStatus, GetConfiguration
-    global     GetInterface, SetAddress
+    ; (isr.asm)
+    extern  TX_BUFFER
+#if INTERRUPT_OUT_ENDPOINT == 1
+    extern  RXINPUT_BUFFER
+#endif
+    extern  FRAME_NUMBER
+    extern  DEVICE_ADDRESS
+    extern  NEW_DEVICE_ADDRESS
 
 
+LOCAL_OVERLAY   UDATA_OVR   0x4A+(INTERRUPT_IN_ENDPOINT*D'16')+(INTERRUPT_OUT_ENDPOINT*D'14')
 
-STANDARD_REQUEST   CODE
+COUNT               RES     D'1'        ; Counter
+GEN                 RES     D'1'        ; General
+GEN2                RES     D'1'        ; General
+#if INTERRUPT_OUT_ENDPOINT == 0
+                    RES     D'6'        ; Space reserved just to get RXINPUT_BUFFER below
+RXINPUT_BUFFER      RES     D'13'       ; Copy of RX_BUFFER
+#endif
+
+
+CONFIG_TOTAL_LEN    EQU (D'9'+D'9'+(INTERRUPT_IN_ENDPOINT*D'7')+(INTERRUPT_OUT_ENDPOINT*D'7')+(HID*D'9'))
+
+cd_frm_index        =   3
+tx_offset           =   3
+additional_frames   =   HID + INTERRUPT_IN_ENDPOINT + INTERRUPT_OUT_ENDPOINT
+
+
+cd_verify_end   macro
+#if tx_offset == 8
+    return
+GCD_Frame#v(cd_frm_index):
+cd_frm_index += 1
+tx_offset = 0
+#endif
+    endm
+
+; EP1 IN Macro
+int_ep_in  macro
+    movlw   D'7'
+    movwf   TX_BUFFER+tx_offset     ; bLength
+    cd_verify_end
+tx_offset+=1;
+    movlw   0x05
+    movwf   TX_BUFFER+tx_offset     ; bDescriptorType
+    cd_verify_end
+tx_offset+=1;
+    movlw   0x81
+    movwf   TX_BUFFER+tx_offset     ; bEndPointAddress
+    cd_verify_end
+tx_offset+=1;
+    movlw   0x03
+    movwf   TX_BUFFER+tx_offset     ; bmAttributes
+    cd_verify_end
+tx_offset+=1;
+    movlw   0x08
+    movwf   TX_BUFFER+tx_offset     ; wMaxPacketSize low
+    cd_verify_end
+tx_offset+=1;
+    movlw   0x00
+    movwf   TX_BUFFER+tx_offset     ; wMaxPacketSize high
+    cd_verify_end
+tx_offset+=1;
+    movlw   INT_EP_IN_INTERVAL
+    movwf   TX_BUFFER+tx_offset     ; bInterval
+    cd_verify_end
+tx_offset+=1;
+    endm
+
+; EP1 OUT Macro
+int_ep_out  macro 
+    movlw   D'7'
+    movwf   TX_BUFFER+tx_offset     ;bLength
+    cd_verify_end
+tx_offset+=1;
+    movlw   0x05
+    movwf   TX_BUFFER+tx_offset     ;bDescriptorType
+    cd_verify_end
+tx_offset+=1;
+    movlw   0x01
+    movwf   TX_BUFFER+tx_offset     ;bEndPointAddress
+    cd_verify_end
+tx_offset+=1;
+    movlw   0x03
+    movwf   TX_BUFFER+tx_offset     ;bmAttributes
+    cd_verify_end
+tx_offset+=1;    
+    movlw   0x08
+    movwf   TX_BUFFER+tx_offset     ;wMaxPacketSize low
+    cd_verify_end
+tx_offset+=1;
+    movlw   0x00
+    movwf   TX_BUFFER+tx_offset     ;wMaxPacketSize high
+    cd_verify_end
+tx_offset+=1;
+    movlw   INT_EP_OUT_INTERVAL
+    movwf   TX_BUFFER+tx_offset     ;bInterval
+    cd_verify_end
+tx_offset+=1;
+    endm
+
+
+
+STANDARD_REQUEST    CODE
 
 GetDescriptor:
+; Check for Get Device Descriptor
     movf    RXDATA_BUFFER+3,W
-    sublw   0x01
+    xorlw   DESCRIPTOR_TYPE_DEVICE
     btfsc   STATUS,Z
     goto    GetDeviceDescriptor
-
+; Check for Get Configuration Descriptor
     movf    RXDATA_BUFFER+3,W
-    sublw   0x02
+    xorlw   DESCRIPTOR_TYPE_CONFIGURATION
     btfsc   STATUS,Z
-    goto    GetConfigDescriptor
+    goto    GetConfigurationDescriptor
 
     return
 
 GetDeviceDescriptor:
-    movlw   0x01
-    subwf   FRAME_NUMBER,W
+    movf    FRAME_NUMBER,W
+    xorlw   0x01
     btfsc   STATUS,Z
     goto    GDD_Frame1
-    movlw   0x02
-    subwf   FRAME_NUMBER,W
+
+    movf    FRAME_NUMBER,W
+    xorlw   0x02
     btfsc   STATUS,Z
     goto    GDD_Frame2
 
-GDD_Frame0:                         ;First 8 bytes of Device Descriptor
-    movlw   D'18'                   ;bLength
+GDD_Frame0:                             ; first 8 bytes of Device Descriptor
+    movlw   D'18'                       ; bLength
     movwf   TX_BUFFER+1
 
-    movlw   0x01                    ;bDescriptorType
+    movlw   DESCRIPTOR_TYPE_DEVICE      ; bDescriptorType
     movwf   TX_BUFFER+2
 
-    movlw   USBVL                   ;bcdUSB MN
+    movlw   0x10                        ; bcdUSB MN
     movwf   TX_BUFFER+3
-    movlw   USBVH                   ;bcdUSB JJ
+    movlw   0x01                        ; bcdUSB JJ
     movwf   TX_BUFFER+4
 
-    movlw   DEVCLASS                ;bDeviceClass
+    movlw   DEVICE_CLASS                ; bDeviceClass
     movwf   TX_BUFFER+5
 
-    movlw   DEVSUBCLASS             ;bDeviceSubClass
+#ifdef  DEVICE_SUB_CLASS                ; bDeviceSubClass
+    movlw   DEVICE_SUB_CLASS
     movwf   TX_BUFFER+6
+#else
+    clrf    TX_BUFFER+6
+#endif
 
-    movlw   DEVPROTOCOL             ;bDeviceProtocol
+#ifdef  DEVICE_PROTOCOL                 ; bDeviceProtocol
+    movlw   DEVICE_PROTOCOL
     movwf   TX_BUFFER+7
+#else
+    clrf    TX_BUFFER+7
+#endif
 
-    movlw   0x08                    ;bMaxPacketSize
+    movlw   0x08                        ; bMaxPacketSize
     movwf   TX_BUFFER+8
 
     return
 
-GDD_Frame1:                         ;Second 8 bytes of Device Descriptor
-    movlw   VIDL                    ;idVendor low
+GDD_Frame1:                             ; second 8 bytes of Device Descriptor
+    movlw   DEVICE_VENDOR_ID_LOW        ; idVendor low
     movwf   TX_BUFFER+1
-    movlw   VIDH                    ;idVendor high
+    movlw   DEVICE_VENDOR_ID_HIGH       ; idVendor high
     movwf   TX_BUFFER+2
 
-    movlw   PIDL                    ;idProduct low
+    movlw   DEVICE_ID_LOW               ; idProduct low
     movwf   TX_BUFFER+3
-    movlw   PIDH                    ;idProduct high
+    movlw   DEVICE_ID_HIGH              ; idProduct high
     movwf   TX_BUFFER+4
 
-    movlw   DEVICEVL                ;bcdDevice low
+    movlw   DEVICE_VERSION_LOW          ; bcdDevice low
     movwf   TX_BUFFER+5
-    movlw   DEVICEVH                ;bcdDevice high
+    movlw   DEVICE_VERSION_HIGH         ; bcdDevice high
     movwf   TX_BUFFER+6
 
-    movlw   INDEXMANU               ;iManufacturer
+#ifdef  VENDOR_NAME_INDEX               ; iManufacturer
+    movlw   VENDOR_NAME_INDEX           
     movwf   TX_BUFFER+7
+#else
+    clrf    TX_BUFFER+7                 
+#endif
 
-    movlw   INDEXPROD
-    movwf   TX_BUFFER+8             ;iProduct
+#ifdef  DEVICE_NAME_INDEX               ; iProduct
+    movlw   DEVICE_NAME_INDEX
+    movwf   TX_BUFFER+8
+#else
+    clrf    TX_BUFFER+8
+#endif               
    
     return
 
-GDD_Frame2:                         ;Last 2 bytes of Device Descriptor
-    movlw   DATA1PID                ;DATA1 PID
-    movwf   TX_BUFFER
-
-    movlw   INDEXSER                ;iSerialNumber
+GDD_Frame2:                             ; last 2 bytes of Device Descriptor
+#ifdef  SERIAL_INDEX                                     
+    movlw   SERIAL_INDEX                ; iSerialNumber
     movwf   TX_BUFFER+1
+#else
+    clrf    TX_BUFFER+1
+#endif    
 
-    movlw   NUMCONFIG               ;bNumConfigurations
+    movlw   0x01                        ; bNumConfigurations
     movwf   TX_BUFFER+2
 
     return
 
-GetConfigDescriptor:
-    movlw   0x01
-    subwf   FRAME_NUMBER,W
+GetConfigurationDescriptor:
+    movf    FRAME_NUMBER,W
+    xorlw   0x01
     btfsc   STATUS,Z
     goto    GCD_Frame1
-    movlw   0x02
-    subwf   FRAME_NUMBER,W
+
+    movf    FRAME_NUMBER,W
+    xorlw   0x02
     btfsc   STATUS,Z
     goto    GCD_Frame2
 
-GCD_Frame0:                         ;First 8 bytes of Configuration Descriptor
-    movlw   D'9'                    ;bLength
+    while  additional_frames > 0
+    movf    FRAME_NUMBER,W
+    xorlw   #v(additional_frames+2)
+    btfsc   STATUS,Z
+    goto    GCD_Frame#v(additional_frames+2)
+additional_frames-=1
+    endw
+
+GCD_Frame0:                                 ; first 8 bytes of Configuration Descriptor
+    movlw   D'9'                            ; bLength
     movwf   TX_BUFFER+1
 
-    movlw   0x2                     ;bDescriptorType
+    movlw   DESCRIPTOR_TYPE_CONFIGURATION   ; bDescriptorType
     movwf   TX_BUFFER+2
 
-    movlw   D'18'                   ;wTotalLenght L
-    movwf   TX_BUFFER+3
-    movlw   0x00                    ;wTotalLenght H
-    movwf   TX_BUFFER+4
+    movlw   CONFIG_TOTAL_LEN                ; wTotalLenght L
+    movwf   TX_BUFFER+3                       
+    clrf    TX_BUFFER+4                     ; wTotalLenght H
 
-    movlw   0x01                    ;bNumInterfaces
-    movwf   TX_BUFFER+5
+    movlw   0x01
+    movwf   TX_BUFFER+5                     ; bNumInterfaces                          
+    movwf   TX_BUFFER+6                     ; bConfigurationValue
+    clrf    TX_BUFFER+7                     ; iConfiguration
 
-    movlw   CONFIGVAL               ;bConfigurationValue
-    movwf   TX_BUFFER+6
-
-    movlw   INDEXCONF               ;iConfiguration
-    movwf   TX_BUFFER+7
-
-    movlw   CONFATTRS               ;bmAttributes
+#if DEVICE_MAX_POWER == 0                   ; bmAttributes
+    movlw   0xC0
+#else
+    movlw   0x80
+#endif
     movwf   TX_BUFFER+8
 
     return
 
-GCD_Frame1:                         ;Second 8 bytes of Configuration Descriptor
-    movlw   MAXPOWER                ;bMaxPower
+GCD_Frame1:                             ; second 8 bytes of Configuration Descriptor
+    movlw   ((DEVICE_MAX_POWER+1)/2)    ; bMaxPower
     movwf   TX_BUFFER+1
 
-    movlw   D'9'                    ;bLength
+    movlw   D'9'                        ; bLength
     movwf   TX_BUFFER+2
 
-    movlw   0x04                    ;bDescriptorType
+    movlw   DESCRIPTOR_TYPE_INTERFACE   ; bDescriptorType
     movwf   TX_BUFFER+3
 
-    movlw   0x00                    ;bInterfaceNumber
-    movwf   TX_BUFFER+4
+    clrf    TX_BUFFER+4                 ; bInterfaceNumber
+    clrf    TX_BUFFER+5                 ; bAlternateSetting
 
-    movlw   ALTSETTING
-    movwf   TX_BUFFER+5             ;bAlternateSetting
+    movlw   INTERRUPT_IN_ENDPOINT+INTERRUPT_OUT_ENDPOINT
+    movwf   TX_BUFFER+6                 ; bNumEndPoints
 
-    movlw   0x00
-    movwf   TX_BUFFER+6             ;bNumEndPoints
+#if HID == 0
+    movlw   INTERFACE_CLASS    
+#else 
+    movlw   HID_INTERFACE_CLASS
+#endif
+    movwf   TX_BUFFER+7                 ; bInterfaceClass
 
-    movlw   INTERCLASS
-    movwf   TX_BUFFER+7             ;bInterfaceClass
-
-    movlw   INTERSUBCLASS
-    movwf   TX_BUFFER+8             ;bInterfaceSubClass
+#ifdef  INTERFACE_SUB_CLASS             ; bInterfaceSubClass
+    movlw   INTERFACE_SUB_CLASS
+    movwf   TX_BUFFER+8
+#else
+    clrf    TX_BUFFER+8
+#endif
 
     return
 
-GCD_Frame2:                         ;Last 2 bytes of Configuration Descriptor
-    movlw   DATA1PID                ;DATA0 PID
-    movwf   TX_BUFFER
+GCD_Frame2:                             ; last 2 bytes of Configuration Descriptor
+#ifdef  INTERFACE_PROTOCOL              ; bInterfaceProtocol
+    movlw   INTERFACE_PROTOCOL                   
+    movwf   TX_BUFFER+1
+#else
+    clrf    TX_BUFFER+1
+#endif
 
-    movlw   INTERPROTOCOL           ;bInterfaceProtocol
+#ifdef  INTERFACE_NAME_INDEX            ; iInterface
+    movlw   INTERFACE_NAME_INDEX
+    movwf   TX_BUFFER+2
+#else
+    clrf    TX_BUFFER+2
+#endif
+
+
+#if HID == 1
+    movlw   D'9'
+    movwf   TX_BUFFER+3                 ; bLength
+
+    movlw   DESCRIPTOR_TYPE_HID         ; bDescriptorType
+    movwf   TX_BUFFER+4
+
+    movlw   0x10                        ; bcdHID low
+    movwf   TX_BUFFER+5
+
+    movlw   0x01                        ; bcdHID high
+    movwf   TX_BUFFER+6
+
+    clrf    TX_BUFFER+7                 ; bCountryCode
+
+    movwf   TX_BUFFER+8                 ; bNumDescriptors
+
+    return
+
+GCD_Frame3:
+    movlw   DESCRIPTOR_TYPE_REPORT      ; bDescriptorType
     movwf   TX_BUFFER+1
 
-    movlw   INDEXINTER
-    movwf   TX_BUFFER+2             ;iInterface
+    movlw   HID_REPORT_SIZE             ; wDescriptorLength low
+    movwf   TX_BUFFER+2
+
+    clrf    TX_BUFFER+3                 ; wDescriptorLength high
+
+tx_offset = 4
+cd_frm_index += 1
+
+#endif
+
+#if INTERRUPT_IN_ENDPOINT == 1
+    int_ep_in
+#endif
+
+#if INTERRUPT_OUT_ENDPOINT == 1
+    int_ep_out
+#endif
 
     return
 
 GetStatus:
-    movlw   0x00                    ;Bus Powered/No RemoteWakeup
-    movwf   TX_BUFFER+1
-    movwf   TX_BUFFER+2
+#if DEVICE_MAX_POWER == 0
+    movlw   0x01
+    movwf   TX_BUFFER+1                 ; self Powered
+#else
+    clrf    TX_BUFFER+1                 ; bus Powered
+#endif
+
+    clrf    TX_BUFFER+2                 ; no remote wakeup
 
     return
 
@@ -227,25 +401,8 @@ GetInterface:
     return
 
 SetAddress:
-    movlw   0x08
-    movwf   COUNT
-    movf    RXDATA_BUFFER+2,W
-    movwf   GEN
-    movlw   0x01
-    movwf   GEN2
-SA_encodeAddrInNrzi:
-    btfsc   GEN,0
-    goto    $+3
-    movlw   0x01
-    xorwf   GEN2,F
-
-    bcf     STATUS,C
-    btfsc   GEN2,0
-    bsf     STATUS,C
-    rrf     NEW_DEVICE_ADDRESS,F
-    rrf     GEN,F
-    decfsz  COUNT,F
-    goto    SA_encodeAddrInNrzi
+    movf    RXINPUT_BUFFER+3,W
+    movwf   NEW_DEVICE_ADDRESS
     bcf     NEW_DEVICE_ADDRESS,7
 
     return
