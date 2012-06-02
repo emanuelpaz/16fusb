@@ -21,49 +21,66 @@
 ;                                                                     *
 ;**********************************************************************
 
-
     #include    "def.inc"
 
-    ;From ISR_SHARED_INTERFACE (isr.asm) ------------------------------
-    extern      ADDITIONAL_BITS, PENDING_BYTES, TX_LEN
+    ; Local labels to export
+    global  DoCrc
+    global  InsertStuff
+    global  PreInitTXBuffer
 
-    ;From ISR_VARIABLES (isr.asm) -------------------------------------
-    extern      TX_BUFFER
+    ; (isr.asm)
+    extern  ACTION_FLAG
+    extern  TX_BUFFER
+    extern  TX_LEN
+    extern  TX_EXTRA_BITS
+#if INTERRUPT_IN_ENDPOINT == 1
+    extern  INT_TX_BUFFER
+    extern  INT_TX_LEN
+    extern  INT_TX_EXTRA_BITS
+#endif
 
-    ;From MAIN_SHARED_INTERFACE (main.asm )----------------------------
-    extern      TOTAL_LEN
-
-
-LOCAL_OVERLAY           UDATA_OVR   0x4F
-
-TMP                     RES     D'1'    ;Temporary file
-GEN                     RES     D'1'    ;General purpose file
-GEN2                    RES     D'1'    ;General purpose file
-COUNT                   RES     D'1'    ;Counter file level one
-COUNT2                  RES     D'1'    ;Counter file level two
-SEEK                    RES     D'1'    ;Index file level one
-NCHANGE_COUNT           RES     D'1'    ;Number of no change level in NRZI (bit stuffing)
-
-    global      DoCrc, InsertStuff, PreInitTXBuffer
+    ; (usb.asm)
+    extern  CTRL_TOTAL_LEN
 
 
+LOCAL_OVERLAY   UDATA_OVR   0x4A+(INTERRUPT_IN_ENDPOINT*D'16')+(INTERRUPT_OUT_ENDPOINT*D'14')
 
-FUNCTIONS    CODE
+TMP                 RES     D'1'    ; Temporary
+GEN                 RES     D'1'    ; General
+GEN2                RES     D'1'    ; General
+COUNT               RES     D'1'    ; Counter level one
+COUNT2              RES     D'1'    ; Counter level two
+SEEK                RES     D'1'    ; Index level one
+NCHANGE_COUNT       RES     D'1'    ; Number of no change level in NRZI (bit stuffing)
+EP                  RES     D'1'    ; EP where we inserting bit stuffing
 
+
+FUNCTIONS   CODE
 ;***************************************************
-;Calculate CRC based on parameters:
-; TX_LEN must be already adjusted
+; Calculate CRC.
+; W must have EP adrress.
+; TX_LEN/INT_TX_LEN must be already adjusted.
 DoCrc:
-    movf    TX_LEN,W
-    movwf   COUNT
-
-    movlw   TX_BUFFER+1             ;Initial Address of data
+#if INTERRUPT_IN_ENDPOINT == 1
+    xorlw   0x00
+    btfsc   STATUS,Z
+    goto    DoCrc_Setup_Transfer
+DoCrc_Setup_Int_Transfer:
+    movlw   INT_TX_BUFFER+1         ; Initial Address of data
     movwf   FSR
-    
+    movf    INT_TX_LEN,W
+    goto    DoCrc_Init
+#endif
+DoCrc_Setup_Transfer:
+    movlw   TX_BUFFER+1             ; Initial Address of data
+    movwf   FSR
+    movf    TX_LEN,W
+DoCrc_Init:
+    movwf   COUNT
     ;Initialize crc values
     movlw   0xFF                   
-    movwf   GEN                     ;Low byte of CRC
-    movwf   GEN2                    ;High byte of CRC
+    movwf   GEN                     ; Low byte of CRC
+    movwf   GEN2                    ; High byte of CRC
 
 DoCrc_:
     movf    INDF,W
@@ -102,27 +119,41 @@ CRC16_noxor:
     return
 
 ;***************************************************
-;Insert bitstuffing in TX_BUFFER
-; TX_LEN must be already adjusted
+; Insert bitstuffing in TX_BUFFER.
+; W must indicate EP. 0 = EP0, 1 = EP1.
+; TX_LEN/INT_TX_LEN must be already adjusted.
 InsertStuff:
-    clrf    ADDITIONAL_BITS
+#if INTERRUPT_IN_ENDPOINT == 1
+    movwf   EP
+    xorlw   0x00
+    btfsc   STATUS,Z
+    goto    IS_Setup_Transfer
+IS_Setup_Int_Transfer: 
+    movlw   INT_TX_BUFFER
+    movwf   FSR
+    clrf    INT_TX_EXTRA_BITS
+    movf    INT_TX_LEN,W    
+    goto    IS_Init
+#endif
+IS_Setup_Transfer:
     movlw   TX_BUFFER
     movwf   FSR
+    clrf    TX_EXTRA_BITS
+    movf    TX_LEN,W
+IS_Init:
+    addlw   0x03                    ; PID + CRC16 (3 bytes)
+    movwf   COUNT
 
     movlw   0x04
     movwf   NCHANGE_COUNT
 
-    movf    TX_LEN,W
-    addlw   0x03                    ;PID + CRC16 (3 bytes)
-    movwf   COUNT
-
-IS_Byte:                            ;controlled by COUNT
+IS_Byte:                            ; controlled by COUNT
     movf    INDF,W
     movwf   GEN
 
     movlw   0x08
     movwf   COUNT2
-IS_Bit:                             ;controlled by COUNT2
+IS_Bit:                             ; controlled by COUNT2
     movlw   0x01
     andwf   GEN,W
     sublw   0x01
@@ -147,16 +178,25 @@ IS_Bit:                             ;controlled by COUNT2
     return
 
 ShiftBuffer:
-    incf    ADDITIONAL_BITS,F
+#if INTERRUPT_IN_ENDPOINT == 0
+    incf    TX_EXTRA_BITS,F
+#else
+    movf    EP,0
+    btfss   STATUS,Z
+    goto    $+3
+    incf    TX_EXTRA_BITS,F
+    goto    $+2
+    incf    INT_TX_EXTRA_BITS,F
+#endif
     movf    COUNT,W
     movwf   SEEK
     incf    SEEK,F
 
     movf    FSR,W
-    movwf   TMP                     ;Save current address on TMP
+    movwf   TMP                     ; Save current address on TMP
 
     movf    INDF,W
-    movwf   GEN2                    ;Save current value on GEN2
+    movwf   GEN2                    ; Save current value on GEN2
 
 SB_ShiftByte:
     rlf     INDF,F
@@ -165,12 +205,12 @@ SB_ShiftByte:
     goto    SB_ShiftByte
 
     movf    TMP,W
-    movwf   FSR                     ;Restore FSR
+    movwf   FSR                     ; Restore FSR
 
     movlw   0x09
     movwf   TMP
     movf    COUNT2,W
-    subwf   TMP,F                   ;Number of bits to restore
+    subwf   TMP,F                   ; Number of bits to restore
 
     bcf     INDF,0
     btfsc   GEN2,0
@@ -265,36 +305,35 @@ SB_Done:
     return
 
 ;***********************************************************
-;Adjust Data toggle, TX_LEN and PENDING_BYTES based on
-;TOTAL_LEN value (initially, wLength value).
+; Adjust Data toggle, TX_LEN and AF_BIT_PEND_BYTES based on
+; CTRL_TOTAL_LEN value (initially, wLength value).
 PreInitTXBuffer:
     movlw   0x08
-    subwf   TOTAL_LEN,W
+    subwf   CTRL_TOTAL_LEN,W
     btfss   STATUS,C
     goto    PITB_LessEight
     
-    ;TOTAL_LEN >=8    
-    movwf   TOTAL_LEN               ;TOTAL_LEN = TOTAL_LEN - 8
-    movlw   0x08                    ;8 DATA bytes
-    movwf   TX_LEN                  ;Number of total bytes to send
+    ; CTRL_TOTAL_LEN >=8    
+    movwf   CTRL_TOTAL_LEN          ; CTRL_TOTAL_LEN = CTRL_TOTAL_LEN - 8
+    movlw   0x08                    ; 8 DATA bytes
+    movwf   TX_LEN                  ; Number of total bytes to send
     btfsc   STATUS,Z
-    goto    PITB_ClearPending       ;TOTAL_LEN = 8
-    bsf     PENDING_BYTES,0         ;TOTAL_LEN > 8
+    goto    PITB_ClearPending       ; CTRL_TOTAL_LEN = 8
+    bsf     AF_BIT_PEND_BYTES       ; CTRL_TOTAL_LEN > 8
     goto    PITB_DataToggle
         
 PITB_LessEight:
-    ;TOTAL_LEN < 8
-    movf    TOTAL_LEN,W
-    movwf   TX_LEN                  ;Number of total bytes to send
+    ; CTRL_TOTAL_LEN < 8
+    movf    CTRL_TOTAL_LEN,W
+    movwf   TX_LEN                  ; Number of total bytes to send
 
 PITB_ClearPending:
-    bcf     PENDING_BYTES,0    
+    bcf     AF_BIT_PEND_BYTES    
 
-PITB_DataToggle:    
-    ;Data toggle
-    movlw   DATA0PID
+PITB_DataToggle:
+    movlw   USB_PID_DATA0
     btfss   TX_BUFFER,3
-    movlw   DATA1PID
+    movlw   USB_PID_DATA1
     movwf   TX_BUFFER
 
     return

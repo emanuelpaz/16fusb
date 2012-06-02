@@ -10,29 +10,56 @@
 ;                                                                     *
 ;**********************************************************************
 ;                                                                     *
-;    Filename:        init.asm                                        *
+;    Filename:        main.asm                                        *
 ;    Date:                                                            *
 ;    Author:          Emanuel Paz                                     *
 ;                                                                     *
 ;**********************************************************************
 ;                                                                     *
-;    Notes: Anything to do after the processor reset and before       *
-;           accepting interrupts goes here.                           *
+;    Notes: In this file you can insert initial setup code            *
+;           and something to run in loop, called by MainLoop.         *
 ;                                                                     *
 ;**********************************************************************
 
     #include    "def.inc"
 
-    global      InitSetup
+    ; Local labels to export
+    global  Init
+    global  Main
+
+    ; (isr.asm)
+    extern  ACTION_FLAG
+#if INTERRUPT_IN_ENDPOINT == 1
+    extern  INT_TX_BUFFER
+    extern  INT_TX_LEN
+    ; (usb.asm)
+    extern  PrepareIntTxBuffer
+#endif
+
+
+LOCAL_OVERLAY   UDATA_OVR   0x4A+(INTERRUPT_IN_ENDPOINT*D'16')+(INTERRUPT_OUT_ENDPOINT*D'14')
+
+    ; Local temporary variables goes here
 
 
 
-INIT_SETUP     CODE
+MAIN    CODE
 
-InitSetup:
+;***************************************************************
+; Anything to do after the processor reset and before accepting 
+; interrupts goes here.
+Init:
 
     ;Custom code goes here
-    
+
+    return
+
+;***************************************************************
+; Code that will run in loop, called by MainLoop.
+Main:
+
+    ;Custom code goes here
+
     return
 
     END

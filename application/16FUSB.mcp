@@ -33,6 +33,7 @@ file_005=application
 file_006=application
 file_007=16fusb (core)
 file_008=application
+file_009=application
 [GENERATED_FILES]
 file_000=no
 file_001=no
@@ -43,6 +44,7 @@ file_005=no
 file_006=no
 file_007=no
 file_008=no
+file_009=no
 [OTHER_FILES]
 file_000=no
 file_001=no
@@ -53,16 +55,18 @@ file_005=no
 file_006=no
 file_007=no
 file_008=no
+file_009=no
 [FILE_INFO]
 file_000=..\16fusb\func.asm
 file_001=..\16fusb\isr.asm
-file_002=..\16fusb\main.asm
+file_002=..\16fusb\usb.asm
 file_003=..\16fusb\stdreq.asm
-file_004=init.asm
+file_004=main.asm
 file_005=out.asm
-file_006=vreq.asm
+file_006=setup.asm
 file_007=..\16fusb\def.inc
 file_008=def.inc
+file_009=rpt_desc.inc
 [SUITE_INFO]
 suite_guid={6B3DAA78-59C1-46DD-B6AA-DBDAE4E06484}
 suite_state=generate-relocatable-code
