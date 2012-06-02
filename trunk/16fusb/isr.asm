@@ -24,49 +24,72 @@
 ;                                                                     *
 ;**********************************************************************
 
-
     #include    "def.inc"
 
-    ;From LOCAL_OVERLAY of main.asm -----------------------------------
-    extern      RXINPUT_LEN, RXINPUT_BUFFER, DECODING_PID
+    ; (usb.asm)
+    extern  RXINPUT_LEN
+    extern  RXINPUT_BUFFER
 
 
 ISR_SHARED_INTERFACE    UDATA_SHR
 
-W_TMP                   RES     D'1'    ;File to save W
-STATUS_TMP              RES     D'1'    ;File to save STATUS
-ACTION_FLAG             RES     D'1'    ;What main loop must do
-ADDITIONAL_BITS         RES     D'1'    ;Number of additional bits(stuffing bits) to send
-FRAME_NUMBER            RES     D'1'    ;Frame number of a transaction with data larger than 8 bytes
-PENDING_BYTES           RES     D'1'    ;A bit (0) that signals if there are pending bytes to send
-                                        ;Used in transactions with data larger than 8 bytes
-DEVICE_ADDRESS          RES     D'1'    ;Current device address
-NEW_DEVICE_ADDRESS      RES     D'1'    ;Address designated by host
-TX_LEN                  RES     D'1'    ;Number of bytes to send in TX_BUFFER
+W_TMP                   RES     D'1'    ; File to save W
+STATUS_TMP              RES     D'1'    ; File to save STATUS
+FSR_TMP                 RES     D'1'    ; File to save FSR
+ACTION_FLAG             RES     D'1'    ; What main loop must do
+FRAME_NUMBER            RES     D'1'    ; Frame number of a transaction with data larger than 8 bytes
+DEVICE_ADDRESS          RES     D'1'    ; Current device address
+NEW_DEVICE_ADDRESS      RES     D'1'    ; Address designated by host
 
-    global      ACTION_FLAG, ADDITIONAL_BITS, FRAME_NUMBER, PENDING_BYTES
-    global      DEVICE_ADDRESS, NEW_DEVICE_ADDRESS, TX_LEN
+    global  ACTION_FLAG
+    global  TX_EXTRA_BITS
+    global  FRAME_NUMBER
+    global  DEVICE_ADDRESS
+    global  NEW_DEVICE_ADDRESS
+    global  TX_LEN
 
 
 ISR_VARIABLES           UDATA   0x20
 
-FSR_TMP                 RES     D'1'    ;FIle to save FSR
-TMP                     RES     D'1'    ;Temporary file
-COUNT                   RES     D'1'    ;Counter file level one
-SEEK                    RES     D'1'    ;Index file level one
-SEEK2                   RES     D'1'    ;Index file level two
-LAST_TOKEN_PID          RES     D'1'    ;The last Token PID received
-RX_LEN                  RES     D'1'    ;Number of bytes received in RX_BUFFER
-RX_BUFFER               RES     D'13'   ;NRZI data received from host, with bit stuffing
-TX_BUFFER               RES     D'13'   ;Tranmission Buffer. Contains data (not coded) to send
+RX_BUFFER               RES     D'13'   ; NRZI data received from host, with bit stuffing
 
-    global      TX_BUFFER
+TX_BUFFER               RES     D'14'   ; EP0 tranmission buffer for control transfers
+TX_LEN                  RES     D'1'    ; Number of bytes to send in TX_BUFFER
+TX_EXTRA_BITS           RES     D'1'    ; Number of additional bits(stuffing bits) to send
+
+#if INTERRUPT_IN_ENDPOINT == 1
+INT_TX_BUFFER           RES     D'14'   ; EP1(IN) tranmission buffer for interrupt transfer
+INT_TX_LEN              RES     D'1'    ; Number of bytes to send in INT_TX_BUFFER
+INT_TX_EXTRA_BITS       RES     D'1'    ; Number of additional bits(stuffing bits) to send
+#endif
+
+TMP                     RES     D'1'    ; Temporary
+TMP2                    RES     D'1'    ; Temporary
+GEN                     RES     D'1'    ; General
+GEN2                    RES     D'1'    ; General
+
+    global  TX_BUFFER
+#if INTERRUPT_IN_ENDPOINT == 1
+    global  INT_TX_BUFFER
+    global  INT_TX_LEN
+    global  INT_TX_EXTRA_BITS
+#endif
 
 
+#define COUNT               TMP         ; Counter
+#define PID                 TMP2        ; PID to send on handshake
+#define RX_LEN              TMP2        ; Number of bytes received in RX_BUFFER
+#define SEEK                GEN         ; Index level one
+#define SEEK2               GEN2        ; Index level two
+#define LAST_TOKEN_PID      GEN         ; The last Token PID received
+#define LAST_TOKEN_ADDR     GEN2        ; The address of last token received
+#define PAYLOAD_LEN         GEN
+#define ADDITIONAL_BITS     GEN2
 
-INTERRUPT_VECTOR    CODE    0x0004
+
+INTERRUPT_VECTOR    CODE    0x04
 ; -------------- Sync (start) --------------
-    ;Save context first
+    ; save context
     movwf   W_TMP
     swapf   STATUS,W
     movwf   STATUS_TMP
@@ -75,132 +98,156 @@ INTERRUPT_VECTOR    CODE    0x0004
 
 WaitForJ:
     bcf     STATUS,RP1
-    btfsc   PORTB,0
+    btfsc   USB_DPLUS
     goto    WaitForJ
 WaitForK:
-    btfss   PORTB,0
+    btfss   USB_DPLUS
     goto    WaitForK    
     movf    FSR,W
 FoundK:
     movwf   FSR_TMP
-    btfss   PORTB,0
+    btfss   USB_DPLUS
     goto    WaitForK    
     
-    ;Setup RX_BUFFER
+    ; setup RX_BUFFER
     movlw   RX_BUFFER
     movwf   FSR
     clrf    INDF
 ; -------------- Sync (end) ----------------
 
-    btfsc   PORTB,0
+    btfsc   USB_DPLUS
     bsf     INDF,0
-    btfss   PORTB,2
+    btfss   USB_EOPCHK
     goto    Eop
     
-    btfsc   PORTB,0
+    btfsc   USB_DPLUS
     bsf     INDF,1
-    btfss   PORTB,2
+    btfss   USB_EOPCHK
     goto    Eop
 
-    btfsc   PORTB,0
+    btfsc   USB_DPLUS
     bsf     INDF,2
-    btfss   PORTB,2
+    btfss   USB_EOPCHK
     goto    Eop
 
-    btfsc   PORTB,0
+    btfsc   USB_DPLUS
     bsf     INDF,3
-    btfss   PORTB,2
+    btfss   USB_EOPCHK
     goto    Eop
 RxLoop:
-    btfsc   PORTB,0    
+    btfsc   USB_DPLUS    
     bsf     INDF,4
-    btfss   PORTB,2
+    btfss   USB_EOPCHK
     goto    Eop
 
-    btfsc   PORTB,0
+    btfsc   USB_DPLUS
     bsf     INDF,5
-    btfss   PORTB,2
+    btfss   USB_EOPCHK
     goto    Eop
 
-    btfsc   PORTB,0
+    btfsc   USB_DPLUS
     bsf     INDF,6
-    btfss   PORTB,2
+    btfss   USB_EOPCHK
     goto    Eop
 
-    btfsc   PORTB,0
+    btfsc   USB_DPLUS
     bsf     INDF,7
     incf    FSR,F
     clrf    INDF
     
-    btfsc   PORTB,0
+    btfsc   USB_DPLUS
     bsf     INDF,0
-    btfss   PORTB,2
+    btfss   USB_EOPCHK
     goto    Eop
     
-    btfsc   PORTB,0
+    btfsc   USB_DPLUS
     bsf     INDF,1
-    btfss   PORTB,2
+    btfss   USB_EOPCHK
     goto    Eop
     
-    btfsc   PORTB,0
+    btfsc   USB_DPLUS
     bsf     INDF,2
-    btfss   PORTB,2
+    btfss   USB_EOPCHK
     goto    Eop
 
-    btfsc   PORTB,0
+    btfsc   USB_DPLUS
     bsf     INDF,3
     goto    RxLoop
     
-;End of Packet detcted
+; End of Packet detcted
 Eop:
-    btfsc   RX_BUFFER,1
-    goto    DataPack                ;Jump if it's data packet
+    btfsc   RX_BUFFER,1             ; is it data packet?
+    goto    DataPack
     btfss   RX_BUFFER,0
     goto    ReturnFromISR
+
 TokenPack:
-    bcf     RX_BUFFER+1,7
-    movf    DEVICE_ADDRESS,W
-    subwf   RX_BUFFER+1,W
-    btfss   STATUS,Z
-    goto    DiscardPack             ;address does not match, discard packet
-    btfsc   RX_BUFFER,4             ;if it's SETUP/OUT
-    goto    HandleSetupOut          ;jump
+    btfsc   RX_BUFFER,4             ; is it SETUP/OUT?
+    goto    HandleSetupOut
 
 HandleIn:
-    movlw   AF_TX_BUFF_READY
-    subwf   ACTION_FLAG,W           ;Checks ACTION_FLAG
-    btfsc   STATUS,Z
-    goto    $+D'4'                  ;Jump if answer is ready
-    movlw   NAKPID                  ;Put NAK to send
-    call    SendHandshake           ;Send NAK
-    goto    ReturnFromISR           ;And leave interrupt service
+#if INTERRUPT_IN_ENDPOINT == 1
+    ; check endpoint
+    bcf     AF_BIT_INTERRUPT
+    rlf     RX_BUFFER+1,W
+    xorwf   RX_BUFFER+1,F
+    btfss   RX_BUFFER+1,7
+    bsf     AF_BIT_INTERRUPT
 
-    call    SendTXBuffer            ;Send answer in buffer
+    btfss   AF_BIT_INTERRUPT
+    goto    HI_Is_TX_Ready  
+HI_Is_Int_TX_Ready:
+    btfss   AF_BIT_INT_TX_READY     ; answer from EP1 is ready?
+    goto    HI_Nak
+    bcf     AF_BIT_INT_TX_READY
+    movlw   INT_TX_BUFFER
+    movwf   FSR
+    movf    INT_TX_EXTRA_BITS,W
+    movwf   ADDITIONAL_BITS
+    movf    INT_TX_LEN,W
+    goto    HI_Send
+#endif
+HI_Is_TX_Ready:
+    btfss   AF_BIT_TX_READY         ; answer from EP0 is ready?
+    goto    HI_Nak
+    bcf     AF_BIT_TX_READY
+    movlw   TX_BUFFER
+    movwf   FSR
+#if INTERRUPT_IN_ENDPOINT == 1
+    movf    TX_EXTRA_BITS,W
+    movwf   ADDITIONAL_BITS
+#endif
+    movf    TX_LEN,W
+    goto    HI_Send
+HI_Nak:
+    movlw   USB_PID_NAK             ; if answer isn't ready put NAK to send
+    call    SendHandshake           ; send NAK
+    goto    ReturnFromISR           ; and leave interrupt service
+HI_Send:
+    call    SendTXBuffer            ; send answer in buffer
+#if INTERRUPT_IN_ENDPOINT == 1
+    btfsc   AF_BIT_INTERRUPT
+    goto    ReturnFromISR
+#endif
     movf    NEW_DEVICE_ADDRESS,W
-    movwf   DEVICE_ADDRESS          ;Renew device address
-    movlw   AF_PROC_SETUP
-    btfsc   PENDING_BYTES,0
-    goto    HI_AdjustFrame          ;Jump if theres pending bytes
+    movwf   DEVICE_ADDRESS          ; renew device address
 
-    movlw   AF_FREE                 ;If there are no pending bytes, set it free
-    goto    $+D'2'
-
-HI_AdjustFrame:
-    incf    FRAME_NUMBER,F          ;Increment frame if there are pending bytes
-    
-    movwf   ACTION_FLAG             ;Set ACTION_FLAG
+    btfss   AF_BIT_PEND_BYTES
     goto    ReturnFromISR
 
-DiscardPack:
-    clrf    LAST_TOKEN_PID
+    incf    FRAME_NUMBER,F          ; increment frame if there are pending bytes
+    bsf     AF_BIT_BUSY 
     goto    ReturnFromISR
 
 HandleSetupOut:
     movf    RX_BUFFER,W        
-    movwf   LAST_TOKEN_PID          ;Save TOKEN PID    
-    
+    movwf   LAST_TOKEN_PID          ; save token PID
+
+    movf    RX_BUFFER+1,W           ; save token ADDR and first EP bit (bit7)
+    movwf   LAST_TOKEN_ADDR 
+
 ReturnFromISR:
-    ;Restore Context
+    ; restore Context
     movf    FSR_TMP,W
     movwf   FSR
     swapf   STATUS_TMP,W
@@ -212,70 +259,77 @@ ReturnFromISR:
     retfie
 
 DataPack:
-    ;if packet was discarded previously, return from ISR
-    movf    LAST_TOKEN_PID,F
-    btfsc   STATUS,Z
-    goto    ReturnFromISR
+    ; check packet address
+    movlw   0x7F
+    andwf   LAST_TOKEN_ADDR,W
+    xorwf   DEVICE_ADDRESS,W
+    btfss   STATUS,Z
+    goto    ReturnFromISR           ; address does not match, discard packet
 
-    ;Set RX_LEN
+    ; if still processing send NAK
+    btfss   AF_BIT_BUSY
+    goto    DP_Ack
+
+#if INTERRUPT_OUT_ENDPOINT == 1
+    ; As we use the same buffer to receive control and interrupt transfer,
+    ; if host send a setup packet while device is decoding a previous data 
+    ; from a out interrupt, the device discard it. If you need send control
+    ; messages just after out interrupts, you may put a delay between them.
+    ; Currently, decoding time takes 254us.
+    btfss   LAST_TOKEN_PID,2
+    return
+#endif
+
+DP_Nak:
+    movlw   USB_PID_NAK
+    call    SendHandshake           ; send NAK
+    goto    ReturnFromISR           ; And return
+DP_Ack:
+    movlw   USB_PID_ACK
+    call    SendHandshake           ; if it's free or a Setup packet send ACK
+
+    ; set RX_LEN
     movlw   RX_BUFFER
     subwf   FSR,W
     movwf   RX_LEN
-
-    ;We're in a Data packet, so if ACTION_FLAG is
-    ;setted with AF_TX_BUFF_READY we must make it free.
-    movlw   AF_TX_BUFF_READY
-    subwf   ACTION_FLAG,W
-    btfss   STATUS,Z
-    goto    $+D'3'
-    movlw   AF_FREE
-    movwf   ACTION_FLAG
-
-    movlw   AF_FREE
-    subwf   ACTION_FLAG,W           ;Checks ACTION_FLAG
-    btfsc   STATUS,Z
-    goto    $+D'4'
-
-    movlw   NAKPID
-    call    SendHandshake           ;If ACTION_FLAG is not free, send NAK
-    goto    ReturnFromISR           ;And return
+    movwf   RXINPUT_LEN
     
-    movlw   ACKPID                  ;If it's free...
-    call    SendHandshake           ;Send ACK
-    
-    ;if it's a zero length packet, just return.
+    ; if it's a zero length packet, just return.
     movf    RX_LEN,W
-    sublw   0x03
+    xorlw   0x03
     btfsc   STATUS,Z
     goto    ReturnFromISR
 
-
 DP_PrepareDataToDecoding:
-    movlw   AF_DECODE_DATA          ;Tells MainLoop to decode data
-    movwf   ACTION_FLAG
+    ; tells MainLoop to decode data
+    bsf     AF_BIT_BUSY
+    bsf     AF_BIT_DECODING
+    bcf     AF_BIT_PID_OUT
+    btfsc   LAST_TOKEN_PID,2
+    bsf     AF_BIT_PID_OUT
 
-    movf    LAST_TOKEN_PID,W
-    movwf   DECODING_PID
+#if INTERRUPT_OUT_ENDPOINT == 1    
+    ; if EP is not zero, set transfer type to interrupt
+    bcf     AF_BIT_INTERRUPT
+    rlf     LAST_TOKEN_ADDR,W
+    xorwf   LAST_TOKEN_ADDR,F
+    btfss   LAST_TOKEN_ADDR,7
+    bsf     AF_BIT_INTERRUPT
+#endif
 
-    decf    RX_LEN,W
-    movwf   RXINPUT_LEN 
-    movwf   COUNT
-
-    movlw   RX_BUFFER+1             ;Ignore Token PID
-    movwf   SEEK                    ;Source
+    movlw   RX_BUFFER
+    movwf   SEEK                    ; source
 
     movlw   RXINPUT_BUFFER
-    movwf   SEEK2                   ;Destiny
+    movwf   SEEK2                   ; destiny
 
-;Copy RX_BUFFER to RXINPUT_BUFFER
+; copy RX_BUFFER to RXINPUT_BUFFER
 DP_PDTD_CopyBuffer:
-    ;source
     movf    SEEK,W
     movwf   FSR
     movf    INDF,W
     movwf   TMP
 
-    ;destiny
     movf    SEEK2,W
     movwf   FSR
     movf    TMP,W
@@ -283,133 +337,138 @@ DP_PDTD_CopyBuffer:
 
     incf    SEEK,F
     incf    SEEK2,F
-    decfsz  COUNT,F
+    decfsz  RX_LEN,F
     goto    DP_PDTD_CopyBuffer
 
     goto    ReturnFromISR
 
+;********************************************************
+; FSR must contain buffer address to send.
+; W must contain the length of payload data.
 SendTXBuffer:
-    ;Prepare latch
-    bsf     PORTB,1                 ;RB0 will by 0 due to R-M-W (we're in EOP)
+    addlw   0x03                    ; TX_PAYLOAD_LEN += PID + CRC16 (3 bytes)
+    movwf   PAYLOAD_LEN
 
-    movlw   0x03
-    addwf   TX_LEN,F                ;TX_LEN += PID + CRC16 (3 bytes)
+    ; prepare latch
+    bsf     USB_DMINUS              ; USB_DPLUS will by 0 due to R-M-W (we're in EOP)       
 
-    ;Set RB0/RB1 Output
+    ; set RB0/RB1 Output
     bsf     STATUS,RP0
     movlw   0xFC
     andwf   TRISB,F
     bcf     STATUS,RP0
-
-    movlw   TX_BUFFER
-    movwf   FSR    
+  
     movlw   0x07
     movwf   COUNT
 
     bcf     STATUS,C
-    rlf     TX_LEN,F
-    rlf     TX_LEN,F
-    rlf     TX_LEN,W
-    addlw   0x08                    ;8 bits of Sync Pattern            
+    rlf     PAYLOAD_LEN,F
+    rlf     PAYLOAD_LEN,F
+    rlf     PAYLOAD_LEN,W
+    addlw   0x08                    ; 8 bits of Sync Pattern
+#if INTERRUPT_IN_ENDPOINT == 1
     addwf   ADDITIONAL_BITS,W
-    sublw   0xFF                    ;255 - 8 - (TX_LEN*8) - AdditionalBits    
+#else
+    addwf   TX_EXTRA_BITS,W
+#endif
+    sublw   0xFF                    ; 255 - 8 - (TX_PAYLOAD_LEN*8) - AdditionalBits    
     movwf   TMR0
                                     
-    nop                             ;Stabilize TRM0 value
+    nop                             ; stabilize TRM0 value
 
-    ;TMR0 written, two (next) cycles inhibited.
+    ; TMR0 written, two (next) cycles inhibited.
     nop    
-    movlw   B'00110000'             ;Enable TIMER0 int
+    movlw   B'00110000'             ; enable TIMER0 int
 
-    ;The next four lines takes 1 bit time (-1).
+    ; the next four cycles takes 1 bit time.
     movwf   INTCON
     movlw   0x03
-    goto    $+D'1'                     ;Here, 1 bit time elapsed. TRM0 += 1.
+    goto    $+D'1'                  ; here, 1 bit time elapsed. TRM0 += 1.
 
-    ;These two cycles makes T0IF verification at the last cycle of bit time,
-    ;so we can jump to the EOP with only one excessive instruction cycle (166ns)
-    ;in most cases. Sometimes trash bits, at the end of the package, 
-    ;may occurs (see below).
+    ; These two cycles makes T0IF verification at the last cycle of bit time,
+    ; so we can jump to the EOP with only one excessive instruction cycle (166ns)
+    ; in most cases. Sometimes trash bits, at the end of the package, 
+    ; may occurs (see below).
     goto    $+D'1'
 
-;Send Sync
+; send Sync
 STXB_SyncLoop:            
-    xorwf   PORTB,F
+    xorwf   USB_PORT,F
     decfsz  COUNT,F
     goto    STXB_SyncLoop
     
     goto    $+D'1'
     goto    $+D'1'
 
-    ;Send TX_Buffer (doing NRZI encode)    
+    ; send TX_Buffer (doing NRZI encode)    
     btfss   INDF,0
-    xorwf   PORTB,F
+    xorwf   USB_PORT,F
     btfsc   INTCON,T0IF
     goto    GenEop
     
     btfss   INDF,1
-    xorwf   PORTB,F
+    xorwf   USB_PORT,F
     btfsc   INTCON,T0IF
     goto    GenEop
 
 STXB_SendByte:
     btfss   INDF,2
-    xorwf   PORTB,F
+    xorwf   USB_PORT,F
     btfsc   INTCON,T0IF
     goto    GenEop
     
     btfss   INDF,3
-    xorwf   PORTB,F
+    xorwf   USB_PORT,F
     btfsc   INTCON,T0IF
     goto    GenEop
     
     btfss   INDF,4
-    xorwf   PORTB,F
+    xorwf   USB_PORT,F
     btfsc   INTCON,T0IF
     goto    GenEop
     
     btfss   INDF,5
-    xorwf   PORTB,F
+    xorwf   USB_PORT,F
     btfsc   INTCON,T0IF
     goto    GenEop
     
     btfss   INDF,6
-    xorwf   PORTB,F
+    xorwf   USB_PORT,F
     btfsc   INTCON,T0IF
     goto    GenEop
     
-    ;We can't check for T0IF here because FSR needs to be
-    ;incremented to take next bit in buffer. Due this, sometimes,
-    ;one trash bit may be present before EOP. In fact, it's not a
-    ;problem, because hosts just ignore extra bits in package. ;)
+    ; We can't check for T0IF here because FSR needs to be
+    ; incremented to take next bit in buffer. Due this, sometimes,
+    ; one trash bit may be present before EOP. In fact, it's not a
+    ; problem, because hosts just ignore extra bits in package. ;)
     btfss   INDF,7
-    xorwf   PORTB,F
+    xorwf   USB_PORT,F
     incf    FSR,F
     nop
 
     btfss   INDF,0
-    xorwf   PORTB,F
+    xorwf   USB_PORT,F
     btfsc   INTCON,T0IF
     goto    GenEop
     
-    ;Same about trash bit here, but this time due to 'goto STXB_SendByte'.
+    ; Same about trash bit here, but this time due to 'goto STXB_SendByte'.
     btfss   INDF,1
-    xorwf   PORTB,F
+    xorwf   USB_PORT,F
     goto    STXB_SendByte
 
 GenEop:
     movlw   0xFC
 GenEop_01:
-    andwf   PORTB,F
-    bcf     INTCON,T0IE             ;Disable TIMER0 int
+    andwf   USB_PORT,F
+    bcf     INTCON,T0IE             ; disable TIMER0 int
     goto    GenEop_02
 GenEop_02:
     movlw   0x02
     goto    $+D'1'
     nop
-    xorwf   PORTB,F
+    xorwf   USB_PORT,F
 
-    ;Set RB0/RB1 Input
+    ; set RB0/RB1 Input
     bsf     STATUS,RP0
     movlw   0x03
     iorwf   TRISB,F
@@ -417,61 +476,61 @@ GenEop_02:
     return
 
 SendHandshake:
-    movwf   TMP                     ;Save W (PID to send) in TMP
+    movwf   PID                     ; save handshake PID to send (from W)
 
-    ;Prepare latch
-    bsf     PORTB,1                 ;RB0 will by 0 due to R-M-W (we're in EOP)
+    ; prepare latch
+    bsf     USB_DMINUS              ; USB_DPLUS will by 0 due to R-M-W (we're in EOP)
 
-    ;Set RB0/RB1 Output
+    ; set RB0/RB1 Output
     bsf     STATUS,RP0
     movlw   0xFC
     andwf   TRISB,F
-    bcf     STATUS,RP0              ;Back to bank 0
+    bcf     STATUS,RP0              ; back to bank 0
 
     movlw   0x07
     movwf   COUNT
 
     movlw   0x03    
-SH_SyncLoop:                        ;Send Sync    
-    xorwf   PORTB,F
+SH_SyncLoop:                        ; send Sync    
+    xorwf   USB_PORT,F
     decfsz  COUNT,F
     goto    SH_SyncLoop
     
     goto    $+D'1'
     goto    $+D'1'
 
-    ;Send HandShake PID
-    btfss   TMP,0
-    xorwf   PORTB,F
+    ; send handshake PID
+    btfss   PID,0
+    xorwf   USB_PORT,F
     goto    $+D'1'
     
-    btfss   TMP,1
-    xorwf   PORTB,F
+    btfss   PID,1
+    xorwf   USB_PORT,F
     goto    $+D'1'
 
-    btfss   TMP,2
-    xorwf   PORTB,F
+    btfss   PID,2
+    xorwf   USB_PORT,F
     goto    $+D'1'
     
-    btfss   TMP,3
-    xorwf   PORTB,F
+    btfss   PID,3
+    xorwf   USB_PORT,F
     goto    $+D'1'
 
-    btfss   TMP,4
-    xorwf   PORTB,F
+    btfss   PID,4
+    xorwf   USB_PORT,F
     goto    $+D'1'
 
-    btfss   TMP,5
-    xorwf   PORTB,F
+    btfss   PID,5
+    xorwf   USB_PORT,F
     goto    $+D'1'
 
-    btfss   TMP,6
-    xorwf   PORTB,F
+    btfss   PID,6
+    xorwf   USB_PORT,F
     goto    $+D'1'
 
-    btfss   TMP,7
-    xorwf   PORTB,F
-    goto    GenEop                  ;2 cycles
+    btfss   PID,7
+    xorwf   USB_PORT,F
+    goto    GenEop                  ; 2 cycles
     
 
     END

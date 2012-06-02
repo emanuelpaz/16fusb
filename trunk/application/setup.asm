@@ -10,40 +10,58 @@
 ;                                                                     *
 ;**********************************************************************
 ;                                                                     *
-;    Filename:        vreq.asm                                        *
+;    Filename:        setup.asm                                       *
 ;    Date:                                                            *
 ;    Author:          Emanuel Paz                                     *
 ;                                                                     *
 ;**********************************************************************
 ;                                                                     *
-;    Notes: All vendor/class requests goes here.                      *
+;    Notes: All vendor/class of control transfer requests goes here.  *
 ;                                                                     *
 ;**********************************************************************	
 
-
     #include    "def.inc"
 
-    ;From MAIN_VARIABLES (main.asm) -----------------------------------
-    extern      RXDATA_BUFFER
+    ; Local labels to export
+    global  VendorRequest
+#if HID == 1
+    global  GetReportDescriptor
+#endif
 
-    ;From ISR_VARIABLES (isr.asm) -------------------------------------
-    extern      TX_BUFFER
+    ; (usb.asm)
+    extern  RXDATA_BUFFER
+    extern  RXDATA_LEN
 
-    ;From ISR_SHARED_INTERFACE (isr.asm) ------------------------------
-    extern      FRAME_NUMBER
+    ; (isr.asm)
+    extern  TX_BUFFER
+    extern  FRAME_NUMBER
+    extern  ACTION_FLAG
+#if INTERRUPT_IN_ENDPOINT == 1
+    extern  INT_TX_BUFFER
+    extern  INT_TX_LEN
+    ; (usb.asm)
+    extern  PrepareIntTxBuffer
+#endif
 
-    	
-    ;Local labels to export
-    global      VendorRequest
+
+LOCAL_OVERLAY   UDATA_OVR   0x4A+(INTERRUPT_IN_ENDPOINT*D'16')+(INTERRUPT_OUT_ENDPOINT*D'14')
+
+    ; Local temporary variables goes here
 
 
 
-VENDOR_REQUEST  CODE
+VENDOR_REQUEST    CODE
 
 VendorRequest:
 
-    ;Custom code goes here
+    ; Custom code goes here
 
     return
+
+
+#if HID == 1
+GetReportDescriptor:
+    #include rpt_desc.inc
+#endif
 
 	END
