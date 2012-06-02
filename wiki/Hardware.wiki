@@ -1,20 +1,12 @@
 #summary Basic Circuit
 
 = Basic Circuit =
-The basic circuit of 16FUSB consists in a typical PIC16F628/628A configuration using a crystal and a few more components as shown in the figure below. The circuit is feed by VCC (5V) from the USB port. The diodes D1 and D2 connected in the USB data lines are zeners that limit voltage coming from the PIC, since the USB specification states that these lines works with 3.3V signals. This should avoid potential problems with some more sensitive ports, although even without using zeners the circuit seems to work correctly in most cases. `R3` and `R4` limit the current in USB data lines. The resistor `R1` is responsible for starting the device recognition by the host.
+The basic circuit of 16FUSB consists in a typical PIC16F628/628A configuration using a crystal and a few more components as shown in the figure below. The circuit is feed by VCC (5V) from the USB port. The diodes D1 and D2 connected in the USB data lines are zeners that limit voltage coming from the PIC, since the USB specification states that these lines works with 3.3V signals. This should avoid potential problems with some more sensitive ports, although even without using zeners the circuit seems to work correctly in most cases. R3 and R4 limit the current in USB data lines. The resistor R1 is responsible for starting the device recognition by the host.
 
 The external interrupt pin of the PIC (RB0) is connected to pin D+ USB port. This is where we receive the Sync Pattern (which initiates the interrupt routine) as well as all the others bits read by the PIC. D- is connected to pin RB1, being used almost exclusively for sending bits (along with RB0), unlike RB0 that receives and sends data bits. As the USB port works with differential pair, the lines D + and D- will always be in opposite logical levels, except on one occasion: the EOP (end of packet), where the two lines will be at logic zero (SE0). This ensures that the RB2 pin, connected to the differential pair through D3 and D4, will always be at logic one, except when the host informs the end of package. This trick allows us to check the EOP for every bit received just reading RB2 (btfss PORTB, 2). Remember that time is all we don't have here.
 
+Since PIC's external interrupt input is connected through a Schmitt Trigger buffer, the input high voltage must be at least 0.8 x VDD on RB0. Some USB ports may not reach this value. To solve this, PIC VDD is connected through D5. It will reduce the VDD voltage in 0.6V and the 3.3V of USB port will be enough to reach the Schmitt Trigger threshold.
+
 Is easy to see that, excepting RB0, RB1, RB2 and clock pins, all others I/O PIC pins will be free to be used in customized functionalities. The reference implementation Direct I/O make it clear.
 
-[http://www.lendlocus.com/sites/default/files/16fusb/images/16FUSB_schematic.png]
-
-
-If you got some trouble in device recognition, even using zeners, is possible that interrupt is not starting correctly. Notice that PIC's external interrupt input is connected through a Schmitt Trigger buffer, so the input high voltage must be at least 0.8 x VDD. Some USB ports may not reach this value. In this case, you must connect PIC VDD through a 1N4148, and R1 to PIC VDD instead USB VCC (see image below). It will reduce the VDD voltage in 0.6V and the 3.3V of USB port will be enough to reach the Schmitt Trigger threshold.
-
-<br>
-
-[http://www.lendlocus.com/sites/default/files/16fusb/images/16FUSB_hard_adapt.png]
-
-  
-
+[http://www.lendlocus.com/sites/default/files/16fusb/images/16FUSB_v1.2_schematic.png]
