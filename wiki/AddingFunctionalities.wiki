@@ -25,7 +25,7 @@ These files are the interface between the core and the user code. We shall edit 
 == Working With Control Transfers (EP0): ==
 Every control transfer starts with a Setup stage, composed by a SETUP token packet and a DATA0 data packet (see Image 5). On Table 1 we can see the Setup request format. Whenever a non standard request happens, the MainLoop calls VendorRequest. If you look at offset 0 description (Table 1), you’ll notice that VendorRequest will be called if value composed by bit 5 and 6 of bmRequestType field is not zero. These two bit defines if a request is standard, class or vendor request.<br><br>
 
-[http://www.lendlocus.com/sites/default/files/16fusb/images/setup_stage.png]<br><br>
+[http://imageshack.com/a/img163/3525/95rh.png]<br><br>
 
 || *Offset* || *Field* || *Size* || *Value* || *Description* ||
 || 0      || bmRequestType || 1 || Bit-Map || *D7 Data Phase Transfer Direction* <br> 0 = Host to Device <br> 1 = Device to Host <br> *D6..5 Type* <br> 0 = Standard <br> 1 = Class <br> 2 = Vendor <br> 3 = Reserved <br> *D4..0 Recipient* <br> 0 = Device <br> 1 = Interface <br> 2 = Endpoint <br> 3 = Other <br> 4..31 = Reserved ||
@@ -37,7 +37,7 @@ Every control transfer starts with a Setup stage, composed by a SETUP token pack
 <br><br>
 In VendorRequest routine, setup data can be read in RXDATA_BUFFER, how we can see in picture below. We can read the offsets just using the form RXDATA_BUFFER+offset, ex: RXDATA_BUFFER+2 reads wValue low. The values in message fields is part of the developer’s imagination.<br><br>
 
-[http://www.lendlocus.com/sites/default/files/16fusb/images/rxdata_buffer_map.png]<br><br>
+[http://imageshack.com/a/img585/4272/qzit.png]<br><br>
 
 All kind of requests always have a transfer direction: Device-to-Host - host expects get data from device; Host-to-Device - roughly, host sends data to device.<br><br>
 
@@ -45,7 +45,7 @@ All kind of requests always have a transfer direction: Device-to-Host - host exp
 
 Transfer direction can be checked on bit 7 of bmRequestType field. Once we’re on device-to-host request, we need to compose the answer, because host will send IN requests to get the device response. Thus, MainLoop delegates this to VendorRequest procedure. The answer shall fill 1 to 8 offsets of TX_BUFFER (TX_BUFFER+1 … TX_BUFFER+8). We do not need fill the three others offsets, MainLoop will do it automatically for us.<br><br>
 
-[http://www.lendlocus.com/sites/default/files/16fusb/images/tx_buffer_map.png]<br><br>
+[http://imageshack.com/a/img845/8130/4dk8.png]<br><br>
 
 Low speed devices are limited to a maximum of 8 bytes packet size. If data stage have more than 8 bytes (wLength > 8), the transaction will be divided in multiple packets. In this case you shall use the FRAME_NUMBER file register for check what part of answer host is asking.<br><br>
 
