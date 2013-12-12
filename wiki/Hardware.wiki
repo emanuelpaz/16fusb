@@ -9,4 +9,4 @@ Since PIC's external interrupt input is connected through a Schmitt Trigger buff
 
 Is easy to see that, excepting RB0, RB1, RB2 and clock pins, all others I/O PIC pins will be free to be used in customized functionalities. The reference implementation Direct I/O make it clear.
 
-[http://www.lendlocus.com/sites/default/files/16fusb/images/16FUSB_v1.2_schematic.png]
+[http://imageshack.com/a/img17/1250/qcr3.png]
