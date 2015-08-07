@@ -1,0 +1,3 @@
+16FUSB also supports HID communication. Just enable interrupt endpoints and HID option in def.inc file. Using HID we can discard libusb driver and use the operational system HID driver. There are many texts over Internet showing how to use HID through Windows and Linux. You can write you own Report Descriptor editing rpt\_desc.inc. Report Descriptor size is adjusted in def.inc.
+
+Just remember that HID can use both control and interrupt transfers, so it's important to know well the API you're using and how 16FUSB works with control and interrupt transfers.
