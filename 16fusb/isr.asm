@@ -155,23 +155,27 @@ RxLoop:
     incf    FSR,F
     clrf    INDF
     
+    btfss   USB_EOPCHK
+    goto    Eop    
     btfsc   USB_DPLUS
     bsf     INDF,0
+
     btfss   USB_EOPCHK
     goto    Eop
-    
     btfsc   USB_DPLUS
     bsf     INDF,1
+
     btfss   USB_EOPCHK
-    goto    Eop
-    
+    goto    Eop   
     btfsc   USB_DPLUS
     bsf     INDF,2
+
     btfss   USB_EOPCHK
     goto    Eop
 
     btfsc   USB_DPLUS
     bsf     INDF,3
+    btfsc   USB_EOPCHK
     goto    RxLoop
     
 ; End of Packet detcted
