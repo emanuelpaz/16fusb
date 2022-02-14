@@ -115,30 +115,30 @@ FoundK:
     clrf    INDF
 ; -------------- Sync (end) ----------------
 
-    btfsc   USB_DPLUS
-    bsf     INDF,0
+    btfss   USB_EOPCHK
+    goto    Eop  
+    btfsc   USB_DPLUS 
+    bsf     INDF,0    
+     
     btfss   USB_EOPCHK
     goto    Eop
-    
     btfsc   USB_DPLUS
     bsf     INDF,1
+
     btfss   USB_EOPCHK
     goto    Eop
-
     btfsc   USB_DPLUS
     bsf     INDF,2
+
     btfss   USB_EOPCHK
     goto    Eop
-
     btfsc   USB_DPLUS
     bsf     INDF,3
+RxLoop:
     btfss   USB_EOPCHK
     goto    Eop
-RxLoop:
     btfsc   USB_DPLUS    
     bsf     INDF,4
-    btfss   USB_EOPCHK
-    goto    Eop
 
     btfsc   USB_DPLUS
     bsf     INDF,5
@@ -155,20 +155,20 @@ RxLoop:
     incf    FSR,F
     clrf    INDF
     
+    btfss   USB_EOPCHK
+    goto    Eop   
     btfsc   USB_DPLUS
     bsf     INDF,0
-    btfss   USB_EOPCHK
-    goto    Eop
-    
+ 
     btfsc   USB_DPLUS
     bsf     INDF,1
     btfss   USB_EOPCHK
     goto    Eop
-    
+  
     btfsc   USB_DPLUS
     bsf     INDF,2
     btfss   USB_EOPCHK
-    goto    Eop
+    goto    Eop 
 
     btfsc   USB_DPLUS
     bsf     INDF,3
