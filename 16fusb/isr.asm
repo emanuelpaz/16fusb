@@ -107,7 +107,7 @@ WaitForK:
 FoundK:
     movwf   FSR_TMP
     btfss   USB_DPLUS
-    goto    WaitForK    
+    goto    FoundK    
     
     ; setup RX_BUFFER
     movlw   RX_BUFFER
